@@ -47,7 +47,7 @@ export function LogoCloud() {
       />
 
       <LogoCard
-        className="relative border-b border-r bg-secondary md:border-b-0 md:bg-background dark:bg-secondary/30 md:dark:bg-background"
+        className="relative hidden border-r bg-secondary md:flex md:border-b-0 md:bg-background dark:bg-secondary/30 md:dark:bg-background"
         logo={{
           src: "https://storage.efferd.com/logo/turso-wordmark.svg",
           alt: "Turso Logo",
@@ -57,7 +57,7 @@ export function LogoCloud() {
       </LogoCard>
 
       <LogoCard
-        className="border-b bg-background md:border-b-0 md:border-r md:bg-secondary dark:md:bg-secondary/30"
+        className="hidden bg-background md:flex md:border-b-0 md:border-r md:bg-secondary dark:md:bg-secondary/30"
         logo={{
           src: "https://storage.efferd.com/logo/clerk-wordmark.svg",
           alt: "Clerk Logo",
@@ -65,7 +65,7 @@ export function LogoCloud() {
       />
 
       <LogoCard
-        className="border-r"
+        className="hidden border-r md:flex"
         logo={{
           src: "https://storage.efferd.com/logo/claude-wordmark.svg",
           alt: "Claude AI Logo",
@@ -73,7 +73,7 @@ export function LogoCloud() {
       />
 
       <LogoCard
-        className="bg-secondary dark:bg-secondary/30"
+        className="hidden bg-secondary md:flex dark:bg-secondary/30"
         logo={{
           src: "https://storage.efferd.com/logo/vercel-wordmark.svg",
           alt: "Vercel Logo",

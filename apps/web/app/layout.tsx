@@ -22,6 +22,8 @@ const siteDescription =
 
 export const viewport: Viewport = {
   themeColor: "#ffffff",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export const metadata: Metadata = {

@@ -230,7 +230,52 @@
 }
 
 @media (max-width: 640px) {
+  .hero {
+    padding: 24px 16px 32px;
+    gap: 28px;
+    min-height: 0;
+  }
+
+  .heroTitle {
+    font-size: 36px;
+    line-height: 38px;
+  }
+
+  .heroContent {
+    gap: 16px;
+  }
+
   .heroShader {
     display: none;
+  }
+
+  .hackathons {
+    padding: 24px 16px 32px;
+  }
+
+  .hackathonsTitle {
+    font-size: 24px;
+    line-height: 30px;
+  }
+
+  .citySection {
+    margin-bottom: 24px;
+  }
+
+  .cityHeader {
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .hackathonRow {
+    padding: 12px 0;
+  }
+
+  .rowTitle {
+    font-size: 13px;
+  }
+
+  .rowDate {
+    font-size: 12px;
   }
 }
