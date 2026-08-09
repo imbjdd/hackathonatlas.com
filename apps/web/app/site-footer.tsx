@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoMark } from "./logo-mark";
 
 const GITHUB_REPO = "https://github.com/imbjdd/hackathonatlas.com";
 
@@ -26,12 +27,7 @@ export function SiteFooter() {
       <div className="flex flex-wrap items-start justify-between gap-12 px-6 pb-10 pt-12 md:px-16">
         <div className="flex max-w-[300px] flex-col gap-3.5">
           <div className="flex items-center gap-[9px]">
-            <span className="flex h-6 w-6 flex-wrap content-center items-center justify-center gap-[2px] rounded-[7px] bg-[#0A0A0A] p-[5px]">
-              <span className="h-1 w-1 rounded-[1px] bg-white" />
-              <span className="h-1 w-1 rounded-[1px] bg-white" />
-              <span className="h-1 w-1 rounded-[1px] bg-white" />
-              <span className="h-1 w-1 rounded-[1px] bg-[#7A7A7A]" />
-            </span>
+            <LogoMark size={24} />
             <span className="text-[15px] font-semibold tracking-[-0.01em] text-[#0A0A0A]">
               Hackathon Atlas
             </span>

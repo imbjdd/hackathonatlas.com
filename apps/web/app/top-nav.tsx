@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "./theme-toggle";
+import { LogoMark } from "./logo-mark";
 
 const GITHUB_REPO = "https://github.com/imbjdd/hackathonatlas.com";
 
@@ -28,12 +29,7 @@ export async function TopNav() {
     <nav className="sticky top-0 z-30 flex w-full justify-center border-b border-[#EAEAEA] bg-white">
     <div className="flex w-full max-w-[1320px] items-center justify-between px-6 py-4 md:px-16">
       <Link href="/" className="flex items-center gap-2.5">
-        <span className="flex h-[26px] w-[26px] flex-wrap content-center items-center justify-center gap-[2px] rounded-[7px] bg-[#0A0A0A] p-1.5">
-          <span className="h-1 w-1 rounded-[1px] bg-white" />
-          <span className="h-1 w-1 rounded-[1px] bg-white" />
-          <span className="h-1 w-1 rounded-[1px] bg-white" />
-          <span className="h-1 w-1 rounded-[1px] bg-[#7A7A7A]" />
-        </span>
+        <LogoMark size={26} />
         <span className="text-[16px] font-semibold tracking-[-0.01em] text-[#0A0A0A]">
           Hackathon Atlas
         </span>
