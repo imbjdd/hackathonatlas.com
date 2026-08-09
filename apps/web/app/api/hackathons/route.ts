@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "../../../src/db";
 import { events } from "../../../src/db/schema";
 import { uploadImageFromUrl } from "../../../src/lib/s3";
+import { enrichFromLuma } from "../../../src/lib/luma";
 
 export async function POST(request: NextRequest) {
   const expectedSecret = process.env.HACKATHONS_API_SECRET;
@@ -49,14 +50,18 @@ export async function POST(request: NextRequest) {
     coverUrl = await uploadImageFromUrl(body.coverUrl);
   }
 
+  // Enrich attendance mode + location from the source (Luma). Best-effort: a
+  // failure just leaves the fields null. Explicit body values take precedence.
+  const loc = body.link ? await enrichFromLuma(body.link) : null;
+
   const [created] = await db
     .insert(events)
     .values({
       title: body.title,
       description: body.description ?? null,
-      city: body.city ?? null,
-      latitude: body.latitude ?? null,
-      longitude: body.longitude ?? null,
+      city: body.city ?? loc?.city ?? null,
+      latitude: body.latitude ?? loc?.latitude ?? null,
+      longitude: body.longitude ?? loc?.longitude ?? null,
       startTime: new Date(body.startTime),
       endTime: body.endTime ? new Date(body.endTime) : null,
       organizerId: body.organizerId ?? null,
@@ -65,6 +70,11 @@ export async function POST(request: NextRequest) {
       tags: body.tags ?? null,
       participantsCount: body.participantsCount ?? 0,
       coverUrl,
+      mode: body.mode ?? loc?.mode ?? null,
+      country: body.country ?? loc?.country ?? null,
+      countryCode: body.countryCode ?? loc?.countryCode ?? null,
+      venue: body.venue ?? loc?.venue ?? null,
+      enrichedAt: loc ? new Date() : null,
     })
     .returning();
 
