@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 export type DirectoryEvent = {
@@ -15,7 +16,10 @@ export type DirectoryEvent = {
   cashPrize: number | null;
   tags: string[] | null;
   cover: string | null;
+  createdAt: string | null;
 };
+
+const NEW_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type Format = "all" | "in-person" | "online" | "hybrid";
 
@@ -68,6 +72,20 @@ function classify(e: DirectoryEvent): Exclude<Format, "all"> {
   if (hasTag(e.tags, "online", "remote", "virtual") || /\b(online|virtual|remote)\b/i.test(e.title))
     return "online";
   return "in-person";
+}
+
+function isNew(e: DirectoryEvent, now: number): boolean {
+  if (!e.createdAt) return false;
+  const added = new Date(e.createdAt).getTime();
+  return Number.isFinite(added) && now - added < NEW_WINDOW_MS;
+}
+
+function NewBadge() {
+  return (
+    <span className="shrink-0 rounded-full bg-[#DCFCE7] px-2 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-[#15803D]">
+      New
+    </span>
+  );
 }
 
 function eventTag(e: DirectoryEvent): { label: string } | null {
@@ -190,6 +208,7 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
   const [citySortAlpha, setCitySortAlpha] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const now = Date.now();
 
   // "/" focuses the search input
   useEffect(() => {
@@ -447,9 +466,11 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
           <div className="flex flex-wrap" style={{ width: "calc(100% + 1px)", marginBottom: "-1px" }}>
             {paged.map((e) => {
               const tag = eventTag(e);
+              const fresh = isNew(e, now);
               const cell = (
                 <>
-                  <div className="flex h-[22px] w-full items-start">
+                  <div className="flex h-[22px] w-full items-start gap-1.5">
+                    {fresh && <NewBadge />}
                     {tag && (
                       <span className="rounded-full bg-[#FCEFCE] px-2 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-[#B45309]">
                         {tag.label}
@@ -473,20 +494,14 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
               const cellClass =
                 "flex min-h-[216px] shrink grow basis-1/5 min-w-0 flex-col border-b border-r border-[#EAEAEA] px-4 py-5 transition-colors";
 
-              return e.link ? (
-                <a
+              return (
+                <Link
                   key={e.id}
-                  href={e.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/hackathons/${e.id}`}
                   className={`${cellClass} hover:bg-[#FAFAFA]`}
                 >
                   {cell}
-                </a>
-              ) : (
-                <div key={e.id} className={cellClass}>
-                  {cell}
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -494,6 +509,7 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
           <div className="flex flex-col">
             {paged.map((e) => {
               const tag = eventTag(e);
+              const fresh = isNew(e, now);
               const row = (
                 <>
                   <EventLogo e={e} size={40} radius={11} fontSize={15} />
@@ -505,36 +521,29 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
                       {formatDate(e.startTime)} · {normCity(e) ?? "Online"}
                     </span>
                   </span>
+                  {fresh && <NewBadge />}
                   {tag && (
                     <span className="shrink-0 rounded-full bg-[#FCEFCE] px-2 py-[3px] text-[11px] font-semibold tracking-[0.02em] text-[#B45309]">
                       {tag.label}
                     </span>
                   )}
-                  {e.link && (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4D4D8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                  )}
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D4D4D8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
                 </>
               );
 
               const rowClass =
                 "flex items-center gap-4 border-b border-[#EAEAEA] px-6 py-3.5 transition-colors";
 
-              return e.link ? (
-                <a
+              return (
+                <Link
                   key={e.id}
-                  href={e.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={`/hackathons/${e.id}`}
                   className={`${rowClass} hover:bg-[#FAFAFA]`}
                 >
                   {row}
-                </a>
-              ) : (
-                <div key={e.id} className={rowClass}>
-                  {row}
-                </div>
+                </Link>
               );
             })}
           </div>
