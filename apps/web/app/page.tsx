@@ -37,6 +37,7 @@ export default async function Home() {
         cashPrize: events.cashPrize,
         tags: events.tags,
         coverUrl: events.coverUrl,
+        createdAt: events.createdAt,
       })
       .from(events)
       .where(upcoming)
@@ -66,6 +67,7 @@ export default async function Home() {
     cashPrize: r.cashPrize,
     tags: r.tags,
     cover: getCoverSrc(r.coverUrl),
+    createdAt: r.createdAt ? r.createdAt.toISOString() : null,
   }));
 
   const totalEvents = totals[0]?.count ?? 0;
