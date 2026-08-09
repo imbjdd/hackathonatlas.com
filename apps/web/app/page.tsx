@@ -1,172 +1,149 @@
+import { and, asc, gte, isNull, lte, or, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
-import { and, gte, ilike, isNotNull, isNull, lte, or } from "drizzle-orm";
-import { HeroShader } from "./hero-shader";
-import { HeroSearchTrigger } from "./hero-search-trigger";
-import { HackathonCover } from "./hackathon-cover";
-import { Navbar } from "./navbar";
-import { LogoCloud } from "@/components/logo-cloud";
-import { buildExploreHackathonsHref, FEATURED_LOCATION_FILTERS } from "./explore-hackathons/location-filters";
-import Link from "next/link";
-import styles from "./page.module.css";
+import { TopNav } from "./top-nav";
+import { HackathonDirectory, type DirectoryEvent } from "./hackathon-directory";
+import { SiteFooter } from "./site-footer";
+import { thumbKeyForCover } from "../src/lib/thumb-key";
 
 export const dynamic = "force-dynamic";
-const FEATURED_SECTIONS = [
-  {
-    key: "france",
-    label: "France",
-    href: buildExploreHackathonsHref({ region: "france" }),
-    boxes: FEATURED_LOCATION_FILTERS.france.boxes,
-  },
-  {
-    key: "san-francisco",
-    label: "San Francisco",
-    href: buildExploreHackathonsHref({ city: "San Francisco" }),
-    match: ["San Francisco"],
-  },
-  {
-    key: "london",
-    label: "London",
-    href: buildExploreHackathonsHref({ city: "London" }),
-    match: ["London"],
-  },
-  {
-    key: "berlin",
-    label: "Berlin",
-    href: buildExploreHackathonsHref({ city: "Berlin" }),
-    match: ["Berlin"],
-  },
-] as const;
+
+const GRID_LIMIT = 500;
 
 function getCoverSrc(coverUrl: string | null): string | null {
   if (!coverUrl) return null;
   if (coverUrl.startsWith("http")) return coverUrl;
-  return `/api/images?key=${encodeURIComponent(coverUrl)}`;
-}
-
-function formatEventDateRange(startTime: Date, endTime: Date | null): string {
-  const start = startTime.toLocaleDateString("fr-FR");
-  if (!endTime) return `${start} - TBD`;
-  const end = endTime.toLocaleDateString("fr-FR");
-  return `${start} - ${end}`;
+  // Serve the small pre-generated thumbnail; the images route falls back to
+  // the original cover if a thumbnail doesn't exist yet.
+  return `/api/images?key=${encodeURIComponent(thumbKeyForCover(coverUrl))}`;
 }
 
 export default async function Home() {
   const now = new Date();
-  const hackathonsBySection = await Promise.all(
-    FEATURED_SECTIONS.map(async (section) => {
-      const locationFilter =
-        "boxes" in section
-          ? and(
-              isNotNull(events.latitude),
-              isNotNull(events.longitude),
-              or(
-                ...section.boxes.map((box) =>
-                  and(
-                    gte(events.latitude, box.minLat),
-                    lte(events.latitude, box.maxLat),
-                    gte(events.longitude, box.minLng),
-                    lte(events.longitude, box.maxLng),
-                  ),
-                ),
-              ),
-            )
-          : or(...section.match.map((city) => ilike(events.city, city)));
-      const items = await db
-        .select()
-        .from(events)
-        .where(and(or(isNull(events.endTime), gte(events.endTime, now)), locationFilter))
-        .orderBy(events.startTime)
-        .limit(6);
-      return { section, items };
-    }),
-  );
+  const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const upcoming = or(isNull(events.endTime), gte(events.endTime, now));
+
+  const [rows, totals, allTotals, cityTotals, weekTotals] = await Promise.all([
+    db
+      .select({
+        id: events.id,
+        title: events.title,
+        city: events.city,
+        startTime: events.startTime,
+        endTime: events.endTime,
+        link: events.link,
+        cashPrize: events.cashPrize,
+        tags: events.tags,
+        coverUrl: events.coverUrl,
+      })
+      .from(events)
+      .where(upcoming)
+      .orderBy(asc(events.startTime))
+      .limit(GRID_LIMIT),
+    db.select({ count: sql<number>`count(*)::int` }).from(events).where(upcoming),
+    db.select({ count: sql<number>`count(*)::int` }).from(events),
+    db
+      .select({ count: sql<number>`count(distinct ${events.city})::int` })
+      .from(events)
+      .where(upcoming),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(events)
+      .where(and(upcoming, gte(events.startTime, now), lte(events.startTime, weekEnd))),
+  ]);
+
+  const directoryEvents: DirectoryEvent[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    city: r.city,
+    startTime: r.startTime.toISOString(),
+    endTime: r.endTime ? r.endTime.toISOString() : null,
+    link: r.link,
+    cashPrize: r.cashPrize,
+    tags: r.tags,
+    cover: getCoverSrc(r.coverUrl),
+  }));
+
+  const totalEvents = totals[0]?.count ?? 0;
+  const totalAll = allTotals[0]?.count ?? 0;
+  const totalCities = cityTotals[0]?.count ?? 0;
+  const thisWeek = weekTotals[0]?.count ?? 0;
+  const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
-    <div className={styles.page}>
-      <Navbar />
+    <div
+      className="flex min-h-screen flex-col items-center bg-white"
+      style={{ fontFamily: "var(--font-geist), system-ui, sans-serif" }}
+    >
+      <TopNav />
 
-      {/* Hero */}
-      <section className={styles.hero}>
-        <div className={styles.heroContent}>
-          <h1 className={styles.heroTitle}>Discover Hackathons near you</h1>
-          <HeroSearchTrigger />
-        </div>
-        <div className={styles.heroShader}>
-          <HeroShader />
-        </div>
-      </section>
+      <div className="flex w-full max-w-[1320px] flex-col border-x border-[#EAEAEA]">
+        {/* Hero */}
+        <section className="relative flex flex-col gap-[22px] px-16 py-[76px] max-[720px]:px-8">
+          <span className="inline-flex items-center gap-[7px] self-start rounded-full border border-[#E4E4E7] py-[5px] pl-2.5 pr-3">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#52525B" strokeWidth="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18M12 3c2.5 2.5 3.5 6 3.5 9s-1 6.5-3.5 9M12 3c-2.5 2.5-3.5 6-3.5 9s1 6.5 3.5 9" strokeWidth="1.6" />
+            </svg>
+            <span className="text-[13px] font-medium text-[#3F3F46]">Hackathon directory</span>
+          </span>
 
-      <section className="px-4 pb-10 md:px-[100px]">
-        <div className="relative w-full">
-          <h2 className="mb-6 -translate-y-2 text-center text-lg font-medium tracking-tight text-muted-foreground md:text-2xl">
-            Featuring hackathons <span className="font-semibold text-primary">organized</span>{" "}
-            by top companies
-          </h2>
-          <div className="relative w-full *:border-y-0">
-            <div className="pointer-events-none absolute -top-px left-1/2 h-px w-screen -translate-x-1/2 bg-border" />
-            <LogoCloud />
-            <div className="pointer-events-none absolute -bottom-px left-1/2 h-px w-screen -translate-x-1/2 bg-border" />
+          <h1 className="max-w-[820px] text-[64px] font-bold leading-[62px] tracking-[-0.035em] text-[#0A0A0A] max-[720px]:text-[44px] max-[720px]:leading-[44px]">
+            Every hackathon, ready to join.
+          </h1>
+
+          <p className="max-w-[620px] text-[19px] leading-[28px] text-[#71717A]">
+            {fmt(totalEvents)} upcoming hackathons for builders worldwide — search, filter by city,
+            then apply in one click.
+          </p>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-7">
+            <span className="flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+              </svg>
+              <span className="text-[15px] font-semibold text-[#18181B] tabular-nums">{fmt(totalAll)}</span>
+              <span className="text-[15px] text-[#A1A1AA]">hackathons</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" aria-hidden="true">
+                <path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+              <span className="text-[15px] font-semibold text-[#18181B] tabular-nums">{fmt(totalCities)}</span>
+              <span className="text-[15px] text-[#A1A1AA]">cities</span>
+            </span>
+            <span className="flex items-center gap-2">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#A1A1AA" strokeWidth="2" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              <span className="text-[15px] font-semibold text-[#18181B] tabular-nums">{fmt(thisWeek)}</span>
+              <span className="text-[15px] text-[#A1A1AA]">this week</span>
+            </span>
           </div>
-        </div>
-      </section>
 
-      {/* Hackathons */}
-      <section className={styles.hackathons}>
-        {hackathonsBySection.map(({ section, items }) => (
-          <div key={section.key} className={styles.citySection}>
-            <div className={styles.cityHeader}>
-              <h2 className={styles.hackathonsTitle}>
-                Upcoming hackathons <span className={styles.location}>in {section.label}</span>
-              </h2>
-              <Link href={section.href} className={styles.seeMoreLink}>
-                See more
-              </Link>
+          {/* Blueprint frame */}
+          <div className="pointer-events-none absolute inset-x-0 top-8 h-px bg-[#EFEFEF]" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-8 h-px bg-[#EFEFEF]" />
+          {[
+            "left-[-6px] top-[26px]",
+            "right-[-6px] top-[26px]",
+            "bottom-[26px] left-[-6px]",
+            "bottom-[26px] right-[-6px]",
+          ].map((pos) => (
+            <div key={pos} className={`pointer-events-none absolute h-3 w-3 ${pos}`}>
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M6 0V12M0 6H12" stroke="#C9C9CE" />
+              </svg>
             </div>
-            <div className={styles.hackathonList}>
-              {items.length === 0 ? (
-                <p className={styles.emptyState}>
-                  No upcoming hackathons in {section.label} yet.
-                </p>
-              ) : (
-                items.map((h) => {
-                  const coverSrc = getCoverSrc(h.coverUrl);
-                  const row = (
-                    <div className={styles.hackathonRow}>
-                      <div className={styles.rowLeft}>
-                        <span className={styles.rowTitle}>{h.title}</span>
-                      </div>
-                      <span className={styles.rowDate}>
-                        {formatEventDateRange(h.startTime, h.endTime)}
-                      </span>
-                      <div className={styles.rowSeeMore}>
-                        <span>See more</span>
-                        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M5.47 11.47C5.177 11.763 5.177 12.237 5.47 12.53C5.763 12.823 6.237 12.823 6.53 12.53L10.53 8.53C10.821 8.24 10.824 7.77 10.537 7.476L6.634 3.476C6.345 3.18 5.87 3.174 5.574 3.463C5.277 3.752 5.271 4.227 5.561 4.524L8.946 7.994L5.47 11.47Z" fill="currentColor" />
-                        </svg>
-                      </div>
-                    </div>
-                  );
+          ))}
+        </section>
 
-                  return h.link ? (
-                    <a
-                      key={h.id}
-                      href={h.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.hackathonRowLink}
-                    >
-                      {row}
-                    </a>
-                  ) : (
-                    <div key={h.id}>{row}</div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        ))}
-      </section>
+        <HackathonDirectory events={directoryEvents} />
+
+        <SiteFooter />
+      </div>
     </div>
   );
 }

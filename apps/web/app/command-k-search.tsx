@@ -2,7 +2,6 @@
 
 import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { buildExploreHackathonsHref } from "./explore-hackathons/location-filters";
 import styles from "./command-k-search.module.css";
 
 type SearchResult = {
@@ -106,11 +105,6 @@ export function CommandKSearch() {
     close();
     if (item.link && item.link.startsWith("http")) {
       window.open(item.link, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    if (item.city) {
-      router.push(buildExploreHackathonsHref({ city: item.city }));
       return;
     }
 

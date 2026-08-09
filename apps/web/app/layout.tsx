@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Yrsa } from "next/font/google";
+import { Geist, Inter, Yrsa } from "next/font/google";
 import Script from "next/script";
 import { CommandKSearch } from "./command-k-search";
 import "./globals.css";
@@ -12,6 +12,11 @@ const inter = Inter({
 const yrsa = Yrsa({
   subsets: ["latin"],
   variable: "--font-yrsa",
+});
+
+const geist = Geist({
+  subsets: ["latin"],
+  variable: "--font-geist",
 });
 
 const siteUrl = "https://hackathonatlas.com";
@@ -78,8 +83,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} ${yrsa.variable}`}>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(!t&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();",
+          }}
+        />
+      </head>
+      <body className={`${inter.variable} ${yrsa.variable} ${geist.variable}`}>
         {process.env.NODE_ENV === "development" && (
           <Script
             src="//unpkg.com/react-grab/dist/index.global.js"
