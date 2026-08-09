@@ -7,6 +7,8 @@ export type DirectoryEvent = {
   id: string;
   title: string;
   city: string | null;
+  country: string | null;
+  mode: string | null;
   startTime: string;
   endTime: string | null;
   link: string | null;
@@ -56,8 +58,15 @@ function normCity(e: DirectoryEvent): string | null {
 }
 
 function classify(e: DirectoryEvent): Exclude<Format, "all"> {
+  // Prefer the enriched attendance mode (authoritative, from the source).
+  if (e.mode === "online") return "online";
+  if (e.mode === "hybrid") return "hybrid";
+  if (e.mode === "in_person") return "in-person";
+  // Fallback for rows not yet enriched: a missing city does NOT imply online —
+  // only call it online on a positive signal, otherwise assume in-person.
   if (hasTag(e.tags, "hybrid")) return "hybrid";
-  if (!normCity(e) || hasTag(e.tags, "online", "remote", "virtual")) return "online";
+  if (hasTag(e.tags, "online", "remote", "virtual") || /\b(online|virtual|remote)\b/i.test(e.title))
+    return "online";
   return "in-person";
 }
 

@@ -24,6 +24,13 @@ export const events = pgTable("events", {
   participantsCount: integer("participants_count").default(0),
   coverUrl: text("cover_url"),
   createdAt: timestamp("created_at").defaultNow(),
+  // Attendance mode + location, enriched from the source (Luma) rather than
+  // guessed at render time. mode ∈ "online" | "in_person" | "hybrid".
+  mode: text("mode"),
+  country: text("country"),
+  countryCode: text("country_code"),
+  venue: text("venue"),
+  enrichedAt: timestamp("enriched_at"),
 });
 
 export const categories = pgTable("categories", {
