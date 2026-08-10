@@ -8,6 +8,7 @@ import { sourceInfoForHost } from "../../src/lib/sources";
 export const dynamic = "force-dynamic";
 
 type SourceRow = { label: string; host: string; logo: string | null; total: number; upcoming: number };
+type CityRow = { city: string; total: number };
 
 // Same emblem palette as the hackathon directory, so a source's monogram feels
 // native to the rest of the site.
@@ -60,6 +61,30 @@ export default async function StatsPage() {
   const grandUpcoming = sources.reduce((n, s) => n + s.upcoming, 0);
   const fmt = (n: number) => n.toLocaleString("en-US");
   const pct = (n: number) => (grandTotal ? Math.round((n / grandTotal) * 100) : 0);
+
+  // Where the hackathons happen — group located events by city. Nulls (online
+  // events, or ones we haven't enriched yet) are dropped so the ranking only
+  // reflects events with a real place.
+  const cityRows: CityRow[] = await db
+    .select({
+      city: sql<string>`${events.city}`,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(events)
+    .where(
+      sql`${events.city} is not null and ${events.city} <> '' and lower(${events.city}) not in ('online', 'virtual', 'remote', 'tbd')`,
+    )
+    .groupBy(events.city)
+    .orderBy(sql`count(*) desc, ${events.city} asc`);
+
+  const TOP_CITIES = 5;
+  const cityKnownTotal = cityRows.reduce((n, c) => n + c.total, 0);
+  const topCities = cityRows.slice(0, TOP_CITIES);
+  const cityMax = topCities[0]?.total ?? 0;
+  // The bar shows each city's size relative to the leader (so the ranking is
+  // legible at a glance); the label is the true share of all located events.
+  const cityBarWidth = (n: number) => (cityMax ? (n / cityMax) * 100 : 0);
+  const cityShare = (n: number) => (cityKnownTotal ? (n / cityKnownTotal) * 100 : 0);
 
   return (
     <div
@@ -209,6 +234,56 @@ export default async function StatsPage() {
               <span className="w-20 text-right text-[15px] font-semibold text-[#18181B] tabular-nums">{fmt(grandTotal)}</span>
             </div>
           )}
+        </section>
+
+        {/* Top cities — same full-bleed language as the sources table above */}
+        <section className="flex flex-col border-t border-[#EAEAEA]">
+          {/* Section header row */}
+          <div className="sticky top-[71px] z-20 flex items-center justify-between border-b border-[#EAEAEA] bg-white px-16 py-4 max-[720px]:px-8">
+            <span className="flex items-center gap-[9px]">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#18181B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <span className="text-[15px] font-semibold text-[#0A0A0A]">Top hackathon cities</span>
+            </span>
+            <span className="text-[13px] text-[#A1A1AA]">
+              {fmt(cityRows.length)} {cityRows.length === 1 ? "city" : "cities"}
+            </span>
+          </div>
+
+          {/* Column labels */}
+          <div className="flex items-center gap-4 border-b border-[#EAEAEA] px-16 py-2.5 max-[720px]:px-8">
+            <span className="w-6 shrink-0" />
+            <span className="min-w-0 flex-1 text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA]">CITY</span>
+            <span className="w-[280px] text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA] max-[720px]:hidden">SHARE</span>
+            <span className="w-16 text-right text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA]">EVENTS</span>
+          </div>
+
+          {topCities.length === 0 ? (
+            <p className="px-6 py-16 text-center text-[15px] text-[#A1A1AA]">No located events yet.</p>
+          ) : (
+            topCities.map((c, i) => (
+              <div
+                key={c.city}
+                className="flex items-center gap-4 border-b border-[#EAEAEA] px-16 py-3.5 transition-colors hover:bg-[#FAFAFA] max-[720px]:px-8"
+              >
+                <span className="w-6 shrink-0 text-right text-[14px] font-medium text-[#A1A1AA] tabular-nums">{i + 1}</span>
+                <span className="line-clamp-1 min-w-0 flex-1 text-[15px] font-semibold text-[#18181B]">{c.city}</span>
+                <span className="flex w-[280px] items-center gap-3 max-[720px]:hidden">
+                  <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#F1F1F1]">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{ width: `${cityBarWidth(c.total)}%`, backgroundColor: "var(--foreground)" }}
+                    />
+                  </span>
+                  <span className="w-11 shrink-0 text-right text-[13px] text-[#A1A1AA] tabular-nums">{cityShare(c.total).toFixed(1)}%</span>
+                </span>
+                <span className="w-16 text-right text-[15px] font-semibold text-[#18181B] tabular-nums">{fmt(c.total)}</span>
+              </div>
+            ))
+          )}
+
         </section>
 
         <SiteFooter />
