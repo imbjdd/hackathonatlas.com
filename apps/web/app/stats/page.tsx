@@ -186,7 +186,7 @@ export default async function StatsPage() {
                   <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#F1F1F1]">
                     <span
                       className="block h-full rounded-full"
-                      style={{ width: `${pct(s.total)}%`, backgroundColor: colorFor(s.label) }}
+                      style={{ width: `${pct(s.total)}%`, backgroundColor: "var(--foreground)" }}
                     />
                   </span>
                   <span className="w-9 shrink-0 text-right text-[13px] text-[#A1A1AA] tabular-nums">{pct(s.total)}%</span>
