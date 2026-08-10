@@ -10,6 +10,7 @@ import type { Source } from "../types.js";
 import { createDevfolioSource } from "./devfolio.js";
 import { createEthGlobalSource } from "./ethglobal.js";
 import { createLumaSource } from "./luma.js";
+import { createMlhSource } from "./mlh.js";
 
 /** A factory builds a source, possibly doing async setup (e.g. geocoding). */
 export type SourceFactory = () => Promise<Source>;
@@ -18,8 +19,8 @@ export const SOURCE_REGISTRY: Record<string, SourceFactory> = {
   luma: createLumaSource,
   ethglobal: createEthGlobalSource,
   devfolio: createDevfolioSource,
+  mlh: createMlhSource,
   // devpost: createDevpostSource,
-  // mlh: createMlhSource,
 };
 
 /** Instantiate the sources selected by config (empty selection = all). */
