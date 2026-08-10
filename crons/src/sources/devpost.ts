@@ -41,48 +41,83 @@ const MONTHS: Record<string, number> = {
   jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
 };
 
+/** One side of a date, e.g. "Aug 14", "Sep 03, 2026", "16" or "Dec 31, 2026". */
+type DatePart = { month?: number; day: number; year?: number };
+
+/** Parse a single date component; month and year are optional. */
+function parseDatePart(raw: string): DatePart | null {
+  const toks = raw.replace(/,/g, "").trim().split(/\s+/).filter(Boolean);
+  if (!toks.length) return null;
+
+  let month: number | undefined;
+  let idx = 0;
+  const maybeMonth = MONTHS[toks[0]!.slice(0, 3).toLowerCase()];
+  if (maybeMonth !== undefined) {
+    month = maybeMonth;
+    idx = 1;
+  }
+
+  const day = Number(toks[idx]);
+  if (!Number.isFinite(day)) return null;
+
+  let year: number | undefined;
+  const yearTok = toks[idx + 1];
+  if (yearTok && /^\d{4}$/.test(yearTok)) year = Number(yearTok);
+
+  return { month, day, year };
+}
+
 /**
- * Parse Devpost's human date range into ISO start/end timestamps.
+ * Parse Devpost's human date string into ISO start/end timestamps.
  *
- * Formats seen: "Aug 14 - 16, 2026", "Aug 17 - Sep 03, 2026",
- * "Sep 14 - Oct 01, 2026". The trailing year belongs to the end date; when the
- * start month is later than the end month the range crosses New Year, so the
- * start year is one less (e.g. "Dec 28 - Jan 03, 2027").
+ * Handles single dates ("Sep 27, 2026") and ranges, where the left side may
+ * omit its month and/or year: "Aug 14 - 16, 2026", "Aug 17 - Sep 03, 2026",
+ * "Sep 14 - Oct 01, 2026", "Jul 16, 2026 - Jan 15, 2027". When the left side
+ * has no year, the trailing (end) year applies — minus one when the start month
+ * is later than the end month (a range crossing New Year, e.g. "Dec 28 - Jan
+ * 03, 2027").
  */
 function parseDateRange(
   raw: string,
 ): { startTime: string; endTime: string } | null {
   const [leftRaw, rightRaw] = raw.split(" - ");
-  if (!leftRaw || !rightRaw) return null;
+  if (!leftRaw) return null;
 
-  const left = leftRaw.trim().split(/\s+/); // ["Aug", "14"]
-  const startMonth = MONTHS[left[0]!.slice(0, 3).toLowerCase()];
-  const startDay = Number(left[1]);
-  if (startMonth === undefined || !Number.isFinite(startDay)) return null;
+  const left = parseDatePart(leftRaw);
+  if (!left || left.month === undefined) return null;
 
-  const yearMatch = rightRaw.match(/(\d{4})/);
-  if (!yearMatch) return null;
-  const endYear = Number(yearMatch[1]);
-
-  // Right side is either "16, 2026" (day only) or "Sep 03, 2026" (month + day).
-  const rightBody = rightRaw.replace(/,?\s*\d{4}\s*$/, "").trim();
-  const rightParts = rightBody.split(/\s+/);
-  let endMonth = startMonth;
-  let endDay: number;
-  if (rightParts.length >= 2) {
-    endMonth = MONTHS[rightParts[0]!.slice(0, 3).toLowerCase()] ?? startMonth;
-    endDay = Number(rightParts[1]);
-  } else {
-    endDay = Number(rightParts[0]);
+  // Single date: start and end are the same day.
+  if (!rightRaw) {
+    if (left.year === undefined) return null;
+    return toRange(left.month, left.day, left.year, left.month, left.day, left.year);
   }
-  if (!Number.isFinite(endDay)) return null;
 
-  const startYear = startMonth > endMonth ? endYear - 1 : endYear;
+  const right = parseDatePart(rightRaw);
+  if (!right) return null;
 
-  const start = new Date(Date.UTC(startYear, startMonth, startDay, 0, 0, 0));
-  const end = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59));
+  const endMonth = right.month ?? left.month;
+  const endYear = right.year ?? left.year;
+  if (endYear === undefined) return null;
+
+  const startMonth = left.month;
+  const startYear =
+    left.year ?? (startMonth > endMonth ? endYear - 1 : endYear);
+
+  return toRange(startMonth, left.day, startYear, endMonth, right.day, endYear);
+}
+
+/** Build an ISO start/end range (start at 00:00:00, end at 23:59:59 UTC). */
+function toRange(
+  sm: number,
+  sd: number,
+  sy: number,
+  em: number,
+  ed: number,
+  ey: number,
+): { startTime: string; endTime: string } | null {
+  const start = new Date(Date.UTC(sy, sm, sd, 0, 0, 0));
+  const end = new Date(Date.UTC(ey, em, ed, 23, 59, 59));
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
-
   return { startTime: start.toISOString(), endTime: end.toISOString() };
 }
 
