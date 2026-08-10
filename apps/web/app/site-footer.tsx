@@ -7,6 +7,7 @@ const COLUMNS: { title: string; links: { label: string; href: string; external?:
   {
     title: "PROJECT",
     links: [
+      { label: "Stats", href: "/stats" },
       { label: "Submit an event", href: `${GITHUB_REPO}/issues/new`, external: true },
       { label: "GitHub", href: GITHUB_REPO, external: true },
     ],
