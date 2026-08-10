@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Inter, Yrsa } from "next/font/google";
+import { cookies } from "next/headers";
 import Script from "next/script";
 import { CommandKSearch } from "./command-k-search";
 import "./globals.css";
@@ -78,13 +79,22 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Read the persisted theme server-side and render the `dark` class directly on
+  // <html>. This keeps the class in React's tree so hydration doesn't strip it
+  // (React 19 removes classes added to <html> client-side before hydration).
+  const theme = (await cookies()).get("theme")?.value;
+
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={theme === "dark" ? "dark" : undefined}
+      suppressHydrationWarning
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
