@@ -3,6 +3,22 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Theme switch: no flashing ────────────────────────────────────────────
+   Some elements carry `transition-colors` (buttons, cards, hover targets) and
+   most don't. On a theme flip the transitioning ones lag behind the instant
+   ones, so a still-light surface briefly sits on an already-dark page and
+   reads as a bright flash. While `.theme-switching` is on `<html>` we freeze
+   every transition so the whole page changes at once — the toggle's own
+   sliding pill is exempted so its animation is preserved. */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+html.theme-switching [data-theme-slider] {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -161,8 +177,10 @@ a {
 .dark .bg-\[\#FAFAFA\] { background-color: #161618 !important; }
 .dark .bg-\[\#F4F4F5\] { background-color: #26262a !important; }
 .dark .bg-\[\#EFEFEF\] { background-color: #1f1f22 !important; }
+.dark .bg-\[\#F1F1F1\] { background-color: #26262a !important; }
 .dark .bg-\[\#7A7A7A\] { background-color: #71717a !important; }
 .dark .bg-\[\#FCEFCE\] { background-color: #3a2e12 !important; }
+.dark .bg-\[\#DCFCE7\] { background-color: #14311f !important; }
 
 /* Borders */
 .dark .border-\[\#EAEAEA\] { border-color: #232326 !important; }
@@ -177,6 +195,7 @@ a {
 .dark .text-\[\#71717A\] { color: #9a9aa0 !important; }
 .dark .text-\[\#A1A1AA\] { color: #8f8f96 !important; }
 .dark .text-\[\#B45309\] { color: #f5c560 !important; }
+.dark .text-\[\#15803D\] { color: #4ade80 !important; }
 .dark .placeholder\:text-\[\#A1A1AA\]::placeholder { color: #6f6f76 !important; }
 
 /* Primary (black) surfaces invert to white with dark content */
