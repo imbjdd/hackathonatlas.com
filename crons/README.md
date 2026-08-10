@@ -22,7 +22,11 @@ crons/
 │   └── sources/
 │       ├── index.ts      # source registry (the extension point)
 │       ├── luma.ts       # Luma (lu.ma) source
-│       └── ethglobal.ts  # ETHGlobal (ethglobal.com) source
+│       ├── ethglobal.ts  # ETHGlobal (ethglobal.com) source
+│       ├── devfolio.ts   # Devfolio (devfolio.co) source
+│       ├── dorahacks.ts  # DoraHacks (dorahacks.io) source
+│       ├── mlh.ts        # MLH (mlh.io) source
+│       └── devpost.ts    # Devpost (devpost.com) source
 ├── .env.example
 └── package.json
 ```
@@ -56,6 +60,7 @@ Everything is configured via environment variables — see
 | `ethglobal` | ETHGlobal `/events` RSC payload — one request lists every event. | Keeps `type=hackathon`; filter statuses with `ETHGLOBAL_STATUSES` (default `future`). Cover/description come from each event page's `og:*` tags. Prize pool isn't reliably exposed, so `cashPrize` is `-1`. |
 | `mlh`       | MLH `/seasons/<year>/events` Inertia payload — one request lists every event. | Season defaults to the current one (rolls over in August); override with `MLH_SEASON`, or scan several with `MLH_SEASONS=2021,2022,…` (historical backfill). Filter statuses with `MLH_STATUSES` (default `pending,in_progress`). Links to each event's own MLH page (unique per edition, so recurring hackathons don't collapse across seasons); descriptions come from the hackathon's site `og:description`. Prize pool isn't exposed, so `cashPrize` is `-1`. |
 | `devpost`   | Devpost public `/api/hackathons` JSON API, paginated (9/page). | Filter open states with `DEVPOST_STATUSES` (default `upcoming,open`). Human date ranges are parsed to ISO; cover/description come from each hackathon page's `og:*` tags. Only `$` prizes are treated as USD (others → `-1`). |
+| `devfolio`  | Devfolio public Hasura GraphQL API (`api.devfolio.co/v1/graphql`), paginated with `limit`/`offset` (20/page) ordered by `ends_at desc` — walks the entire archive. | Name, dates, city, country and full description come straight from GraphQL in one query. `DEVFOLIO_MAX_PAGES` bounds pagination; `LIMIT` caps kept events (raise both for a full backfill). Geocoding is cached by location and throttled. Cover images (the only field GraphQL omits) are read from each `<slug>.devfolio.co` microsite's `cover_img` only when `INCLUDE_DESCRIPTIONS` is set. Prize pool isn't exposed, so `cashPrize` is `-1`. |
 
 ## Adding a new source
 
