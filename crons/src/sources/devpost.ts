@@ -11,7 +11,14 @@ import type { NormalizedEvent, Source, SourceContext } from "../types.js";
 
 const API_URL = "https://devpost.com/api/hackathons";
 const PER_PAGE = 9; // Devpost's fixed page size.
-const MAX_PAGES = 30;
+
+/**
+ * Safety cap on pages walked per status. The archive is ~13.5k `ended`
+ * hackathons (~1500 pages), so a full backfill needs a high value; the loop
+ * still stops early once it has covered `total_count`. Override with
+ * DEVPOST_MAX_PAGES.
+ */
+const DEFAULT_MAX_PAGES = 2000;
 
 /** Open states to keep. Override with DEVPOST_STATUSES (comma-separated). */
 const DEFAULT_STATUSES = ["upcoming", "open"];
@@ -184,6 +191,22 @@ function resolveStatuses(): string[] {
     .filter(Boolean);
 }
 
+function resolveMaxPages(): number {
+  const raw = Number(process.env.DEVPOST_MAX_PAGES);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_PAGES;
+}
+
+/**
+ * Whether to geocode in-person venues. Nominatim forbids bulk geocoding and
+ * caps at ~1 req/s, so disable this (DEVPOST_GEOCODE=false) for large backfills
+ * — events are still pushed with their city string, just without coordinates.
+ */
+function geocodeEnabled(): boolean {
+  const raw = process.env.DEVPOST_GEOCODE;
+  if (!raw) return true;
+  return !["0", "false", "no", "off"].includes(raw.toLowerCase());
+}
+
 async function fetchPage(
   status: string,
   page: number,
@@ -202,6 +225,8 @@ async function fetchPage(
 
 export async function createDevpostSource(): Promise<Source> {
   const statuses = resolveStatuses();
+  const maxPages = resolveMaxPages();
+  const doGeocode = geocodeEnabled();
 
   return {
     name: "devpost",
@@ -210,7 +235,7 @@ export async function createDevpostSource(): Promise<Source> {
       const rawById = new Map<number, DevpostHackathon>();
 
       for (const status of statuses) {
-        for (let page = 1; page <= MAX_PAGES; page++) {
+        for (let page = 1; page <= maxPages; page++) {
           if (rawById.size >= ctx.limit) break;
           ctx.log(`fetching status='${status}' page ${page}`);
           const data = await fetchPage(status, page, ctx.query);
@@ -239,6 +264,9 @@ export async function createDevpostSource(): Promise<Source> {
       ctx.log(`kept ${selected.length} hackathons (statuses: ${statuses.join(", ")})`);
 
       // 2. Normalize, enriching cover/description + geocoding as needed.
+      // Cache geocoding by location: hackathons repeat cities heavily, so this
+      // collapses thousands of Nominatim calls into one per distinct venue.
+      const geoCache = new Map<string, { lat: number; lng: number } | null>();
       const events: NormalizedEvent[] = [];
       for (let i = 0; i < selected.length; i++) {
         const h = selected[i]!;
@@ -250,13 +278,17 @@ export async function createDevpostSource(): Promise<Source> {
 
         let latitude: number | null = null;
         let longitude: number | null = null;
-        if (!online && location) {
-          const coords = await geocode(location);
+        if (doGeocode && !online && location) {
+          let coords = geoCache.get(location);
+          if (coords === undefined) {
+            coords = (await geocode(location)) ?? null;
+            geoCache.set(location, coords);
+            await sleep(randomBetween(1000, 1500)); // be gentle with Nominatim
+          }
           if (coords) {
             latitude = coords.lat;
             longitude = coords.lng;
           }
-          await sleep(randomBetween(1000, 1500)); // be gentle with Nominatim
         }
 
         let coverUrl = absoluteUrl(h.thumbnail_url);
