@@ -148,6 +148,18 @@ function isOnline(location: string): boolean {
   return !location || location.trim().toLowerCase() === "online";
 }
 
+/**
+ * Strip the "and Online" / "Online and" bits from hybrid venues so both the
+ * displayed city and the geocode query are clean (e.g. "Santa Clara Convention
+ * Center and Online" -> "Santa Clara Convention Center").
+ */
+function cleanLocation(location: string): string {
+  return location
+    .replace(/\s*(?:,|-|&|and)\s*online\s*$/i, "")
+    .replace(/^\s*online\s*(?:,|-|&|and)\s*/i, "")
+    .trim();
+}
+
 /** Normalize a protocol-relative Devpost image URL to an absolute https one. */
 function absoluteUrl(url: string | null | undefined): string {
   if (!url) return "";
@@ -270,8 +282,9 @@ export async function createDevpostSource(): Promise<Source> {
       const events: NormalizedEvent[] = [];
       for (let i = 0; i < selected.length; i++) {
         const h = selected[i]!;
-        const location = h.displayed_location?.location ?? "";
-        const online = isOnline(location);
+        const rawLocation = h.displayed_location?.location ?? "";
+        const online = isOnline(rawLocation);
+        const location = online ? rawLocation : cleanLocation(rawLocation);
         const dates = h.submission_period_dates
           ? parseDateRange(h.submission_period_dates)
           : null;
