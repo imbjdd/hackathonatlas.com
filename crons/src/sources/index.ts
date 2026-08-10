@@ -8,6 +8,7 @@
 
 import type { Source } from "../types.js";
 import { createDevfolioSource } from "./devfolio.js";
+import { createDoraHacksSource } from "./dorahacks.js";
 import { createEthGlobalSource } from "./ethglobal.js";
 import { createLumaSource } from "./luma.js";
 import { createMlhSource } from "./mlh.js";
@@ -18,6 +19,7 @@ export type SourceFactory = () => Promise<Source>;
 export const SOURCE_REGISTRY: Record<string, SourceFactory> = {
   luma: createLumaSource,
   ethglobal: createEthGlobalSource,
+  dorahacks: createDoraHacksSource,
   devfolio: createDevfolioSource,
   mlh: createMlhSource,
   // devpost: createDevpostSource,
