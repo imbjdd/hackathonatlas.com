@@ -20,11 +20,16 @@ export function ThemeToggle() {
     // Force the new colors to be computed while transitions are still frozen.
     void root.offsetHeight;
     requestAnimationFrame(() => root.classList.remove("theme-switching"));
+    // Persist to a cookie so the server can render the right `dark` class on the
+    // <html> tag on the next load. Under React 19 a class added client-side to
+    // <html> is stripped during hydration, so relying on localStorage + an inline
+    // script alone loses the theme on refresh. localStorage stays as a fallback.
     try {
       localStorage.setItem("theme", next);
     } catch {
       /* ignore */
     }
+    document.cookie = `theme=${next}; path=/; max-age=31536000; SameSite=Lax`;
   }
 
   function toggle() {
