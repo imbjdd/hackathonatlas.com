@@ -15,6 +15,7 @@
     "db:studio": "drizzle-kit studio",
     "backfill:thumbnails": "bun scripts/backfill-thumbnails.ts",
     "backfill:locations": "bun scripts/backfill-locations.ts",
+  "backfill:devpost-descriptions": "bun scripts/backfill-devpost-descriptions.ts",
     "prune:dead-links": "bun scripts/prune-dead-links.ts"
   },
   "dependencies": {
