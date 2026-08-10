@@ -8,6 +8,7 @@
 
 import type { Source } from "../types.js";
 import { createDevfolioSource } from "./devfolio.js";
+import { createDevpostSource } from "./devpost.js";
 import { createDoraHacksSource } from "./dorahacks.js";
 import { createEthGlobalSource } from "./ethglobal.js";
 import { createLumaSource } from "./luma.js";
@@ -22,7 +23,7 @@ export const SOURCE_REGISTRY: Record<string, SourceFactory> = {
   dorahacks: createDoraHacksSource,
   devfolio: createDevfolioSource,
   mlh: createMlhSource,
-  // devpost: createDevpostSource,
+  devpost: createDevpostSource,
 };
 
 /** Instantiate the sources selected by config (empty selection = all). */
