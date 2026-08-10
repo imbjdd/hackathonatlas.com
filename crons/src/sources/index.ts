@@ -7,6 +7,7 @@
 // given time with the SOURCES env var (comma-separated); empty = all of them.
 
 import type { Source } from "../types.js";
+import { createDoraHacksSource } from "./dorahacks.js";
 import { createEthGlobalSource } from "./ethglobal.js";
 import { createLumaSource } from "./luma.js";
 
@@ -16,6 +17,7 @@ export type SourceFactory = () => Promise<Source>;
 export const SOURCE_REGISTRY: Record<string, SourceFactory> = {
   luma: createLumaSource,
   ethglobal: createEthGlobalSource,
+  dorahacks: createDoraHacksSource,
   // devpost: createDevpostSource,
   // mlh: createMlhSource,
 };
