@@ -83,17 +83,41 @@ async function geocodeCached(location: string): Promise<Coordinates | null> {
   return coords;
 }
 
-/** Fetch a microsite page and pull the cover image (og:image / cover_img). */
+/**
+ * Pull the cover image URL out of a microsite's `__NEXT_DATA__`.
+ *
+ * Devfolio microsites don't expose an `og:image`, but their embedded
+ * `__NEXT_DATA__` header carries a stable `cover_img` asset URL.
+ */
+export function extractCoverImg(html: string): string {
+  const m = html.match(
+    /<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s,
+  );
+  if (!m) return "";
+  try {
+    const data = JSON.parse(m[1]!);
+    const queries = data?.props?.pageProps?.dehydratedState?.queries ?? [];
+    for (const q of queries) {
+      const list = Array.isArray(q?.state?.data) ? q.state.data : [];
+      for (const item of list) {
+        const cover = item?.hackathons?.[0]?.cover_img;
+        if (cover) return String(cover);
+      }
+    }
+  } catch {
+    // Fall through to the regex fallback below.
+  }
+  return html.match(/"cover_img":"([^"]*)"/)?.[1]?.replace(/\\u002F/g, "/") ?? "";
+}
+
+/** Fetch a microsite page and pull the cover image from its `__NEXT_DATA__`. */
 async function fetchCover(slug: string): Promise<string> {
   try {
     const resp = await fetch(`https://${slug}.devfolio.co/`, {
       headers: { "User-Agent": USER_AGENT },
     });
     if (!resp.ok) return "";
-    const html = await resp.text();
-    return (
-      html.match(/<meta property="og:image" content="([^"]*)"/i)?.[1] ?? ""
-    );
+    return extractCoverImg(await resp.text());
   } catch {
     return "";
   }
