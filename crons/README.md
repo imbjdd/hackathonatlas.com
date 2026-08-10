@@ -55,6 +55,7 @@ Everything is configured via environment variables — see
 | `luma`      | Luma discovery API, scanned by geolocation (`LOCATION`/`LAT`/`LNG`). | Fetches descriptions from the per-event API. |
 | `ethglobal` | ETHGlobal `/events` RSC payload — one request lists every event. | Keeps `type=hackathon`; filter statuses with `ETHGLOBAL_STATUSES` (default `future`). Cover/description come from each event page's `og:*` tags. Prize pool isn't reliably exposed, so `cashPrize` is `-1`. |
 | `mlh`       | MLH `/seasons/<year>/events` Inertia payload — one request lists every event. | Season defaults to the current one (rolls over in August); override with `MLH_SEASON`. Filter statuses with `MLH_STATUSES` (default `pending,in_progress`). Links to each hackathon's own site; descriptions come from that site's `og:description`. Prize pool isn't exposed, so `cashPrize` is `-1`. |
+| `devpost`   | Devpost public `/api/hackathons` JSON API, paginated (9/page). | Filter open states with `DEVPOST_STATUSES` (default `upcoming,open`). Human date ranges are parsed to ISO; cover/description come from each hackathon page's `og:*` tags. Only `$` prizes are treated as USD (others → `-1`). |
 
 ## Adding a new source
 
