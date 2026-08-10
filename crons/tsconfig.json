@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
+    "types": ["bun"],
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noUncheckedIndexedAccess": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts"]
+}
