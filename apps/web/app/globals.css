@@ -184,6 +184,7 @@ a {
 
 /* Borders */
 .dark .border-\[\#EAEAEA\] { border-color: #232326 !important; }
+.dark .border-\[\#EEEEEE\] { border-color: #232326 !important; }
 .dark .border-\[\#E4E4E7\] { border-color: #2a2a2e !important; }
 .dark .border-\[\#D4D4D8\],
 .dark .focus-within\:border-\[\#D4D4D8\]:focus-within { border-color: #3a3a3e !important; }
