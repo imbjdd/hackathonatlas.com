@@ -26,7 +26,6 @@ type EthEvent = {
   startTime: string;
   endTime: string;
   tagline: string | null;
-  banner?: { fullUrl?: string } | null;
   city?: { name?: string; country?: { name?: string } | null } | null;
 };
 
@@ -84,7 +83,28 @@ function extractEvents(html: string): EthEvent[] {
   }
 }
 
-/** Fetch an event page and pull the stable og:image / og:description. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x2F;/g, "/")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+/**
+ * A cover URL is only usable if it's a stable public asset. ETHGlobal's older
+ * events expose an og:image that points straight at a *presigned* R2 URL
+ * (`X-Amz-*`, expires in 1h) — those are dead by the time we store them and
+ * make the directory API 500 on ingest, so we treat them as "no cover".
+ */
+function isStableImageUrl(url: string): boolean {
+  return !!url && !/[?&]X-Amz-|r2\.cloudflarestorage\.com/i.test(url);
+}
+
+/** Fetch an event page and pull the og:image / og:description. */
 async function fetchMeta(
   slug: string,
 ): Promise<{ coverUrl: string; description: string }> {
@@ -97,9 +117,11 @@ async function fetchMeta(
     });
     const html = await resp.text();
     const og = (prop: string) =>
-      html.match(
-        new RegExp(`<meta property="og:${prop}" content="([^"]*)"`, "i"),
-      )?.[1] ?? "";
+      decodeEntities(
+        html.match(
+          new RegExp(`<meta property="og:${prop}" content="([^"]*)"`, "i"),
+        )?.[1] ?? "",
+      );
     return { coverUrl: og("image"), description: og("description") };
   } catch {
     return { coverUrl: "", description: "" };
@@ -163,12 +185,15 @@ export async function createEthGlobalSource(): Promise<Source> {
           await sleep(randomBetween(1000, 1500)); // be gentle with Nominatim
         }
 
-        let coverUrl = e.banner?.fullUrl ?? "";
+        // Only keep a stable cover. `banner.fullUrl` from the payload is always
+        // a presigned (expiring) R2 URL, so we never use it — we rely on the
+        // event page's og:image and drop it too if it's presigned.
+        let coverUrl = "";
         let description = e.tagline ?? "";
         if (ctx.includeDescriptions) {
           ctx.log(`enriching ${i + 1}/${selected.length}: ${e.name.slice(0, 50)}`);
           const meta = await fetchMeta(e.slug);
-          if (meta.coverUrl) coverUrl = meta.coverUrl;
+          if (isStableImageUrl(meta.coverUrl)) coverUrl = meta.coverUrl;
           if (meta.description) description = meta.description;
           if (i < selected.length - 1) await sleep(randomBetween(800, 1500));
         }
