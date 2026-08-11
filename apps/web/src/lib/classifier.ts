@@ -16,13 +16,13 @@ import OpenAI from "openai";
 // Override with CLASSIFIER_MODEL to try gpt-5-mini / gpt-4o-mini / etc.
 export const CLASSIFIER_MODEL = process.env.CLASSIFIER_MODEL ?? "gpt-5-nano";
 
-// Thresholds are asymmetric by design. "keep" is the safe default — the event
-// stays visible, same as before any classifier existed — so we auto-apply it at
-// a low bar (cheap models are systematically under-confident on genuine events).
-// "remove" HIDES an event, which is the harmful direction if wrong, so we only
-// auto-apply it when the model is highly confident. Everything in between is
-// sent to /admin for a human to decide.
-export const AUTO_KEEP_THRESHOLD = 0.6;
+// A "keep" verdict never hides an event: keeping is the safe default (the same
+// as before any classifier existed), so we don't second-guess the model when it
+// judges an event real — cheap models are systematically under-confident on
+// genuine events, and hiding a real hackathon is the worst outcome for a
+// directory. Only "remove" hides an event: automatically when the model is
+// highly confident, otherwise it goes to /admin for a human. This keeps the
+// directory full and the review queue small and meaningful.
 export const AUTO_REJECT_THRESHOLD = 0.85;
 
 export type ClassificationVerdict = "keep" | "remove";
@@ -158,10 +158,8 @@ export async function classifyEvent(
 export function statusForResult(
   result: ClassificationResult,
 ): ClassificationStatus {
-  if (result.verdict === "keep") {
-    // Safe direction: keep visible unless the model is very unsure.
-    return result.confidence >= AUTO_KEEP_THRESHOLD ? "kept" : "needs_review";
-  }
-  // Harmful direction: only hide automatically when highly confident.
+  // A "keep" never auto-hides — keeping is the safe default.
+  if (result.verdict === "keep") return "kept";
+  // "remove" hides the event: automatically only when highly confident.
   return result.confidence >= AUTO_REJECT_THRESHOLD ? "rejected" : "needs_review";
 }
