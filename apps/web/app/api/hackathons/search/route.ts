@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { and, asc, gte, ilike, isNull, or } from "drizzle-orm";
 import { db } from "../../../../src/db";
 import { events } from "../../../../src/db/schema";
+import { visibleEvents } from "../../../../src/lib/event-visibility";
 
 const DEFAULT_LIMIT = 8;
 const MAX_LIMIT = 20;
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     .from(events)
     .where(
       and(
+        visibleEvents,
         or(isNull(events.endTime), gte(events.endTime, new Date())),
         or(
           ilike(events.title, `%${q}%`),

@@ -2,9 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../../../src/db";
 import { events } from "../../../src/db/schema";
+import { visibleEvents } from "../../../src/lib/event-visibility";
 import { TopNav } from "../../top-nav";
 import { SiteFooter } from "../../site-footer";
 
@@ -67,7 +68,13 @@ function formatDateRange(start: Date, end: Date | null): string {
 }
 
 async function getEvent(id: string) {
-  const rows = await db.select().from(events).where(eq(events.id, id)).limit(1);
+  // Hidden (fake/test or awaiting-review) events 404 for the public, so their
+  // detail pages aren't reachable by direct link.
+  const rows = await db
+    .select()
+    .from(events)
+    .where(and(eq(events.id, id), visibleEvents))
+    .limit(1);
   return rows[0] ?? null;
 }
 
