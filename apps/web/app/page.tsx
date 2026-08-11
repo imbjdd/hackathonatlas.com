@@ -1,4 +1,4 @@
-import { and, asc, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, gte, lte, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
 import { TopNav } from "./top-nav";
@@ -21,7 +21,7 @@ function getCoverSrc(coverUrl: string | null): string | null {
 export default async function Home() {
   const now = new Date();
   const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const upcoming = or(isNull(events.endTime), gte(events.endTime, now));
+  const upcoming = gte(events.startTime, now);
 
   const [rows, totals, allTotals, cityTotals, weekTotals] = await Promise.all([
     db
