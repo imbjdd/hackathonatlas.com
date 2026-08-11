@@ -36,9 +36,10 @@ export const events = pgTable("events", {
   //   kept         — LLM (or an admin) judged it a real hackathon
   //   rejected     — judged fake/test; hidden from the directory
   //   needs_review — LLM was unsure; hidden and queued for /admin review
-  // confidence is the LLM's 0–1 self-reported confidence; ≥ 0.85 is applied
-  // automatically, below that the row lands in needs_review. model records who
-  // decided (e.g. "gpt-5-nano" or "manual").
+  // confidence is the LLM's 0–1 self-reported confidence. Thresholds are
+  // asymmetric (see lib/classifier.ts): a "keep" is applied at low confidence
+  // (safe default), a "remove" only at high confidence; the rest land in
+  // needs_review. model records who decided (e.g. "gpt-5-nano" or "manual").
   classificationStatus: text("classification_status").notNull().default("pending"),
   classificationConfidence: doublePrecision("classification_confidence"),
   classificationReason: text("classification_reason"),

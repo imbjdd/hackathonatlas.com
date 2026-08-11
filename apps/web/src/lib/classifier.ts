@@ -16,9 +16,14 @@ import OpenAI from "openai";
 // Override with CLASSIFIER_MODEL to try gpt-5-mini / gpt-4o-mini / etc.
 export const CLASSIFIER_MODEL = process.env.CLASSIFIER_MODEL ?? "gpt-5-nano";
 
-// Verdicts at or above this confidence are applied automatically; below it the
-// row is sent to /admin for a human to decide.
-export const AUTO_APPLY_THRESHOLD = 0.85;
+// Thresholds are asymmetric by design. "keep" is the safe default — the event
+// stays visible, same as before any classifier existed — so we auto-apply it at
+// a low bar (cheap models are systematically under-confident on genuine events).
+// "remove" HIDES an event, which is the harmful direction if wrong, so we only
+// auto-apply it when the model is highly confident. Everything in between is
+// sent to /admin for a human to decide.
+export const AUTO_KEEP_THRESHOLD = 0.6;
+export const AUTO_REJECT_THRESHOLD = 0.85;
 
 export type ClassificationVerdict = "keep" | "remove";
 
@@ -153,8 +158,10 @@ export async function classifyEvent(
 export function statusForResult(
   result: ClassificationResult,
 ): ClassificationStatus {
-  if (result.confidence >= AUTO_APPLY_THRESHOLD) {
-    return result.verdict === "keep" ? "kept" : "rejected";
+  if (result.verdict === "keep") {
+    // Safe direction: keep visible unless the model is very unsure.
+    return result.confidence >= AUTO_KEEP_THRESHOLD ? "kept" : "needs_review";
   }
-  return "needs_review";
+  // Harmful direction: only hide automatically when highly confident.
+  return result.confidence >= AUTO_REJECT_THRESHOLD ? "rejected" : "needs_review";
 }
