@@ -4,6 +4,7 @@ import { db } from "../../../src/db";
 import { events } from "../../../src/db/schema";
 import { uploadImageFromUrl } from "../../../src/lib/s3";
 import { enrichFromLuma } from "../../../src/lib/luma";
+import { classifyEvent, statusForResult } from "../../../src/lib/classifier";
 
 export async function POST(request: NextRequest) {
   const expectedSecret = process.env.HACKATHONS_API_SECRET;
@@ -54,6 +55,22 @@ export async function POST(request: NextRequest) {
   // failure just leaves the fields null. Explicit body values take precedence.
   const loc = body.link ? await enrichFromLuma(body.link) : null;
 
+  // Classify the entry as a real vs. fake/test hackathon. Best-effort: on any
+  // failure (or no OPENAI_API_KEY) the row stays "pending" and the backfill
+  // script classifies it later. High-confidence verdicts are applied here;
+  // uncertain ones become "needs_review" and are hidden until an admin acts.
+  const classification = await classifyEvent({
+    title: body.title,
+    description: body.description ?? null,
+    link: body.link ?? null,
+    city: body.city ?? loc?.city ?? null,
+    country: body.country ?? loc?.country ?? null,
+    startTime: body.startTime,
+  }).catch(() => null);
+  const classificationStatus = classification
+    ? statusForResult(classification)
+    : "pending";
+
   const [created] = await db
     .insert(events)
     .values({
@@ -75,6 +92,11 @@ export async function POST(request: NextRequest) {
       countryCode: body.countryCode ?? loc?.countryCode ?? null,
       venue: body.venue ?? loc?.venue ?? null,
       enrichedAt: loc ? new Date() : null,
+      classificationStatus,
+      classificationConfidence: classification?.confidence ?? null,
+      classificationReason: classification?.reason ?? null,
+      classificationModel: classification?.model ?? null,
+      classifiedAt: classification ? new Date() : null,
     })
     .returning();
 

@@ -1,6 +1,11 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
-  "globalEnv": ["HACKATHONS_API_SECRET"],
+  "globalEnv": [
+    "HACKATHONS_API_SECRET",
+    "OPENAI_API_KEY",
+    "CLASSIFIER_MODEL",
+    "ADMIN_SECRET"
+  ],
   "ui": "tui",
   "tasks": {
     "build": {

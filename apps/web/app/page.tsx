@@ -1,6 +1,7 @@
 import { and, asc, gte, lte, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
+import { visibleEvents } from "../src/lib/event-visibility";
 import { TopNav } from "./top-nav";
 import { HackathonDirectory, type DirectoryEvent } from "./hackathon-directory";
 import { SiteFooter } from "./site-footer";
@@ -21,7 +22,8 @@ function getCoverSrc(coverUrl: string | null): string | null {
 export default async function Home() {
   const now = new Date();
   const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const upcoming = gte(events.startTime, now);
+  // Only real hackathons: the classifier hides fake/test and uncertain entries.
+  const upcoming = and(gte(events.startTime, now), visibleEvents);
 
   const [rows, totals, allTotals, cityTotals, weekTotals] = await Promise.all([
     db
@@ -44,7 +46,7 @@ export default async function Home() {
       .orderBy(asc(events.startTime))
       .limit(GRID_LIMIT),
     db.select({ count: sql<number>`count(*)::int` }).from(events).where(upcoming),
-    db.select({ count: sql<number>`count(*)::int` }).from(events),
+    db.select({ count: sql<number>`count(*)::int` }).from(events).where(visibleEvents),
     db
       .select({ count: sql<number>`count(distinct ${events.city})::int` })
       .from(events)

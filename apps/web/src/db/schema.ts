@@ -31,6 +31,19 @@ export const events = pgTable("events", {
   countryCode: text("country_code"),
   venue: text("venue"),
   enrichedAt: timestamp("enriched_at"),
+  // LLM fake/test-hackathon classifier. status drives visibility:
+  //   pending      — not yet classified (still shown on the site)
+  //   kept         — LLM (or an admin) judged it a real hackathon
+  //   rejected     — judged fake/test; hidden from the directory
+  //   needs_review — LLM was unsure; hidden and queued for /admin review
+  // confidence is the LLM's 0–1 self-reported confidence; ≥ 0.85 is applied
+  // automatically, below that the row lands in needs_review. model records who
+  // decided (e.g. "gpt-5-nano" or "manual").
+  classificationStatus: text("classification_status").notNull().default("pending"),
+  classificationConfidence: doublePrecision("classification_confidence"),
+  classificationReason: text("classification_reason"),
+  classificationModel: text("classification_model"),
+  classifiedAt: timestamp("classified_at"),
 });
 
 export const categories = pgTable("categories", {

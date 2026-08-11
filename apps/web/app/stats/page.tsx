@@ -1,6 +1,7 @@
-import { sql } from "drizzle-orm";
+import { and, sql } from "drizzle-orm";
 import { db } from "../../src/db";
 import { events } from "../../src/db/schema";
+import { visibleEvents } from "../../src/lib/event-visibility";
 import { TopNav } from "../top-nav";
 import { SiteFooter } from "../site-footer";
 import { sourceInfoForHost } from "../../src/lib/sources";
@@ -41,6 +42,7 @@ export default async function StatsPage() {
       upcoming: sql<number>`count(*) filter (where ${events.endTime} is null or ${events.endTime} >= now())::int`,
     })
     .from(events)
+    .where(visibleEvents)
     .groupBy(sql`substring(${events.link} from '://([^/]+)')`);
 
   // Collapse hosts into named sources (multiple hosts can map to one source).
@@ -72,7 +74,10 @@ export default async function StatsPage() {
     })
     .from(events)
     .where(
-      sql`${events.city} is not null and ${events.city} <> '' and lower(${events.city}) not in ('online', 'virtual', 'remote', 'tbd')`,
+      and(
+        visibleEvents,
+        sql`${events.city} is not null and ${events.city} <> '' and lower(${events.city}) not in ('online', 'virtual', 'remote', 'tbd')`,
+      ),
     )
     .groupBy(events.city)
     .orderBy(sql`count(*) desc, ${events.city} asc`);
