@@ -186,6 +186,97 @@ function FilterRow({
   );
 }
 
+function FilterSections({
+  format,
+  setFormat,
+  formatCounts,
+  totalCount,
+  city,
+  setCity,
+  displayCities,
+  citySortAlpha,
+  setCitySortAlpha,
+}: {
+  format: Format;
+  setFormat: (f: Format) => void;
+  formatCounts: Record<Exclude<Format, "all">, number>;
+  totalCount: number;
+  city: string | null;
+  setCity: (c: string | null) => void;
+  displayCities: [string, number][];
+  citySortAlpha: boolean;
+  setCitySortAlpha: (fn: (v: boolean) => boolean) => void;
+}) {
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <span className="px-2 pb-2 text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA]">FORMAT</span>
+        <FilterRow
+          active={format === "all"}
+          label="All"
+          count={totalCount}
+          onClick={() => setFormat("all")}
+          icon={
+            <>
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </>
+          }
+        />
+        <FilterRow active={format === "in-person"} label="In person" count={formatCounts["in-person"]} onClick={() => setFormat("in-person")} icon={FORMAT_ICON["in-person"]} />
+        <FilterRow active={format === "online"} label="Online" count={formatCounts.online} onClick={() => setFormat("online")} icon={FORMAT_ICON.online} />
+        <FilterRow active={format === "hybrid"} label="Hybrid" count={formatCounts.hybrid} onClick={() => setFormat("hybrid")} icon={FORMAT_ICON.hybrid} />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between px-2 pb-2">
+          <span className="text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA]">LOCATION</span>
+          <button
+            type="button"
+            onClick={() => setCitySortAlpha((v) => !v)}
+            aria-label={citySortAlpha ? "Sort by count" : "Sort alphabetically"}
+            title={citySortAlpha ? "Sorted A–Z" : "Sorted by count"}
+            className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[#F4F4F5] ${citySortAlpha ? "text-[#18181B]" : "text-[#A1A1AA]"}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l-3 3M17 20l3-3" />
+            </svg>
+          </button>
+        </div>
+        <FilterRow
+          active={city === null}
+          label="All locations"
+          count={totalCount}
+          onClick={() => setCity(null)}
+          icon={
+            <>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M3 12h18" strokeWidth={1.6} />
+            </>
+          }
+        />
+        {displayCities.map(([name, count]) => (
+          <FilterRow
+            key={name}
+            active={city === name}
+            label={name}
+            count={count}
+            onClick={() => setCity(city === name ? null : name)}
+            icon={
+              <>
+                <path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" strokeWidth={1.8} />
+                <circle cx="12" cy="10" r="2.5" strokeWidth={1.8} />
+              </>
+            }
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
 function pageList(current: number, total: number): (number | "ellipsis")[] {
   if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
   const items: (number | "ellipsis")[] = [1];
@@ -205,6 +296,7 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [citySortAlpha, setCitySortAlpha] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -222,6 +314,21 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Lock body scroll and allow Escape to close while the mobile filter sheet is open.
+  useEffect(() => {
+    if (!mobileFiltersOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileFiltersOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [mobileFiltersOpen]);
 
   const formatCounts = useMemo(() => {
     const c = { "in-person": 0, online: 0, hybrid: 0 };
@@ -279,6 +386,8 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
     setPage(1);
   }, [format, city, query]);
 
+  const activeFilterCount = (format !== "all" ? 1 : 0) + (city !== null ? 1 : 0);
+
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -322,7 +431,23 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
           </div>
         )}
         {/* Search toolbar */}
-        <div className="flex min-w-0 flex-1 items-center gap-3.5 border-b border-[#EAEAEA] px-6 py-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5 border-b border-[#EAEAEA] px-4 py-4 sm:gap-3.5 sm:px-6">
+          {/* Mobile filter trigger — the sidebar is hidden below 900px */}
+          <button
+            type="button"
+            onClick={() => setMobileFiltersOpen(true)}
+            aria-label="Show filters"
+            className="relative flex shrink-0 items-center justify-center gap-2 rounded-[10px] border border-[#E4E4E7] px-3 py-[11px] text-[14px] font-medium text-[#18181B] transition-colors hover:bg-[#FAFAFA] min-[900px]:hidden"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+              <path d="M4 6h16M7 12h10M10 18h4" />
+            </svg>
+            {activeFilterCount > 0 && (
+              <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#0A0A0A] px-1 text-[11px] font-semibold text-white tabular-nums">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
           {!filtersOpen && (
             <button
               type="button"
@@ -387,71 +512,18 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
         {filtersOpen && (
         <div className="w-[264px] shrink-0 border-r border-[#EAEAEA] max-[900px]:hidden">
           <aside className="sticky top-[151px] flex flex-col gap-6 bg-white p-6">
-          <div className="flex flex-col gap-1">
-          <span className="px-2 pb-2 text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA]">FORMAT</span>
-          <FilterRow
-            active={format === "all"}
-            label="All"
-            count={events.length}
-            onClick={() => setFormat("all")}
-            icon={
-              <>
-                <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                <rect x="14" y="14" width="7" height="7" rx="1.5" />
-              </>
-            }
-          />
-          <FilterRow active={format === "in-person"} label="In person" count={formatCounts["in-person"]} onClick={() => setFormat("in-person")} icon={FORMAT_ICON["in-person"]} />
-          <FilterRow active={format === "online"} label="Online" count={formatCounts.online} onClick={() => setFormat("online")} icon={FORMAT_ICON.online} />
-          <FilterRow active={format === "hybrid"} label="Hybrid" count={formatCounts.hybrid} onClick={() => setFormat("hybrid")} icon={FORMAT_ICON.hybrid} />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between px-2 pb-2">
-            <span className="text-[11px] font-medium tracking-[0.07em] text-[#A1A1AA]">LOCATION</span>
-            <button
-              type="button"
-              onClick={() => setCitySortAlpha((v) => !v)}
-              aria-label={citySortAlpha ? "Sort by count" : "Sort alphabetically"}
-              title={citySortAlpha ? "Sorted A–Z" : "Sorted by count"}
-              className={`flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-[#F4F4F5] ${citySortAlpha ? "text-[#18181B]" : "text-[#A1A1AA]"}`}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M7 4v16M7 20l-3-3M7 4l3 3M17 20V4M17 4l-3 3M17 20l3-3" />
-              </svg>
-            </button>
-          </div>
-          <FilterRow
-            active={city === null}
-            label="All locations"
-            count={events.length}
-            onClick={() => setCity(null)}
-            icon={
-              <>
-                <circle cx="12" cy="12" r="9" />
-                <path d="M3 12h18" strokeWidth={1.6} />
-              </>
-            }
-          />
-          {displayCities.map(([name, count]) => (
-            <FilterRow
-              key={name}
-              active={city === name}
-              label={name}
-              count={count}
-              onClick={() => setCity(city === name ? null : name)}
-              icon={
-                <>
-                  <path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" strokeWidth={1.8} />
-                  <circle cx="12" cy="10" r="2.5" strokeWidth={1.8} />
-                </>
-              }
+            <FilterSections
+              format={format}
+              setFormat={setFormat}
+              formatCounts={formatCounts}
+              totalCount={events.length}
+              city={city}
+              setCity={setCity}
+              displayCities={displayCities}
+              citySortAlpha={citySortAlpha}
+              setCitySortAlpha={setCitySortAlpha}
             />
-          ))}
-        </div>
-        </aside>
+          </aside>
         </div>
         )}
 
@@ -492,7 +564,7 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
               );
 
               const cellClass =
-                "flex min-h-[216px] shrink grow basis-1/5 min-w-0 flex-col border-b border-r border-[#EAEAEA] px-4 py-5 transition-colors";
+                "flex min-h-[196px] shrink grow basis-1/2 min-[520px]:basis-1/3 min-[760px]:basis-1/4 min-[1040px]:basis-1/5 min-w-0 flex-col border-b border-r border-[#EAEAEA] px-4 py-5 transition-colors sm:min-h-[216px]";
 
               return (
                 <Link
@@ -604,6 +676,60 @@ export function HackathonDirectory({ events }: { events: DirectoryEvent[] }) {
           )}
         </div>
       </div>
+
+      {/* Mobile filter sheet — slides up from the bottom; sidebar is hidden below 900px */}
+      {mobileFiltersOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end min-[900px]:hidden">
+          <button
+            type="button"
+            aria-label="Close filters"
+            onClick={() => setMobileFiltersOpen(false)}
+            className="absolute inset-0 bg-black/40"
+          />
+          <div className="relative flex max-h-[80vh] flex-col rounded-t-2xl bg-white">
+            <div className="flex items-center justify-between border-b border-[#EAEAEA] px-5 py-4">
+              <span className="flex items-center gap-[9px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#18181B" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M4 6h16M7 12h10M10 18h4" />
+                </svg>
+                <span className="text-[15px] font-semibold text-[#0A0A0A]">Filters</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                aria-label="Close filters"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-[#A1A1AA] transition-colors hover:bg-[#F4F4F5] hover:text-[#18181B]"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex flex-col gap-6 overflow-y-auto p-5">
+              <FilterSections
+                format={format}
+                setFormat={setFormat}
+                formatCounts={formatCounts}
+                totalCount={events.length}
+                city={city}
+                setCity={setCity}
+                displayCities={displayCities}
+                citySortAlpha={citySortAlpha}
+                setCitySortAlpha={setCitySortAlpha}
+              />
+            </div>
+            <div className="border-t border-[#EAEAEA] p-4">
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(false)}
+                className="w-full rounded-[10px] bg-[#0A0A0A] py-3 text-[14px] font-medium text-white transition-opacity hover:opacity-90"
+              >
+                Show {filtered.length.toLocaleString("en-US")} hackathons
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
