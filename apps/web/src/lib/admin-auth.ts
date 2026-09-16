@@ -7,6 +7,7 @@
 
 import { cookies } from "next/headers";
 import { timingSafeEqual } from "node:crypto";
+import type { NextRequest } from "next/server";
 
 export const ADMIN_COOKIE = "admin_session";
 
@@ -27,4 +28,11 @@ export function secretMatches(provided: string | undefined | null): boolean {
 export async function isAdmin(): Promise<boolean> {
   const store = await cookies();
   return secretMatches(store.get(ADMIN_COOKIE)?.value);
+}
+
+// Cookie auth (the /admin page) or an x-admin-secret header, so automated
+// clients (e.g. the daily Claude moderation routine) can call admin APIs
+// without the login/cookie dance.
+export async function isAdminRequest(request: NextRequest): Promise<boolean> {
+  return secretMatches(request.headers.get("x-admin-secret")) || (await isAdmin());
 }
