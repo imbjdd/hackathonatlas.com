@@ -1,0 +1,43 @@
+name: Crons
+# Scrapes hackathon sources and pushes new events to the directory API (see
+# crons/README.md). Manual, like the Railway job it replaces.
+on:
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "Comma-separated sources (empty = all)"
+        required: false
+        default: ""
+      limit:
+        description: "Max events per source"
+        required: false
+        default: "400"
+      dry_run:
+        description: "Print payloads, push nothing"
+        type: boolean
+        default: false
+
+jobs:
+  crons:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        working-directory: crons
+    env:
+      SOURCES: ${{ inputs.sources }}
+      LIMIT: ${{ inputs.limit }}
+      DRY_RUN: ${{ inputs.dry_run }}
+      DELAY: "2.0"
+      INCLUDE_DESCRIPTIONS: "true"
+      LOCATION: "Paris, France"
+      ETHGLOBAL_STATUSES: future
+      ORGANIZER_ID: 00000000-0000-0000-0000-000000000000
+      PUSH_API_URL: https://hackathonatlas.com/api/hackathons
+      HACKATHONS_API_SECRET: ${{ secrets.HACKATHONS_API_SECRET }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run start

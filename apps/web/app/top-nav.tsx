@@ -12,10 +12,13 @@ function formatStars(count: number): string {
 async function getGitHubStars(): Promise<number | null> {
   try {
     const res = await fetch("https://api.github.com/repos/imbjdd/hackathonatlas.com", {
+      // GitHub rejects API calls without a User-Agent, which Workers' fetch
+      // doesn't send by default.
+      headers: { "user-agent": "hackathonatlas.com" },
       next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
-    const data = await res.json();
+    const data = (await res.json()) as { stargazers_count?: number };
     return data.stargazers_count ?? null;
   } catch {
     return null;

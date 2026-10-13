@@ -10,6 +10,7 @@
 // (kept/rejected); uncertain ones become "needs_review" for /admin. Idempotent
 // and resumable — safe to re-run.
 
+import "./cloudflare";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";

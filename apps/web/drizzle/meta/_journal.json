@@ -1,40 +1,12 @@
 {
   "version": "7",
-  "dialect": "postgresql",
+  "dialect": "sqlite",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1772650939771,
-      "tag": "0000_aberrant_bloodscream",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1772651600520,
-      "tag": "0001_lean_wild_pack",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1772652713017,
-      "tag": "0002_worthless_mandrill",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1786295668772,
-      "tag": "0003_kind_magus",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1786436747235,
-      "tag": "0004_cuddly_mentallo",
+      "version": "6",
+      "when": 1791895036241,
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]

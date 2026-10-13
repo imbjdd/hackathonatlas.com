@@ -11,10 +11,11 @@
  * Idempotent: only touches Devfolio rows whose `cover_url` is still NULL.
  * Run from apps/web:  bun scripts/backfill-devfolio-covers.ts
  */
+import "./cloudflare";
 import { and, eq, isNull, like } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
-import { uploadImageFromUrl } from "../src/lib/s3";
+import { uploadImageFromUrl } from "../src/lib/media";
 
 const CONCURRENCY = 6;
 

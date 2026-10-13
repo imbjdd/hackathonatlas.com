@@ -84,7 +84,7 @@ export default async function AdminPage({
     db
       .select({
         status: events.classificationStatus,
-        count: sql<number>`count(*)::int`,
+        count: sql<number>`count(*)`,
       })
       .from(events)
       .groupBy(events.classificationStatus),

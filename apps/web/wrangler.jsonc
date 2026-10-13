@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hackathonatlas",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "services": [
+    // Self-reference used by OpenNext to revalidate ISR entries.
+    { "binding": "WORKER_SELF_REFERENCE", "service": "hackathonatlas" },
+  ],
+  "kv_namespaces": [{ "binding": "NEXT_INC_CACHE_KV", "id": "559afe965e394119a683c9c4f34de109" }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hackathonatlas",
+      "database_id": "7107e2ee-2be5-4437-947c-66770a639fe6",
+      "migrations_dir": "drizzle",
+      // `next dev` and the scripts/ backfills read production data, as they
+      // did against the Railway database before.
+      "remote": true,
+    },
+  ],
+  // Event covers (covers/<uuid>.<ext>) and their thumbnails (thumbs/<uuid>.webp).
+  "r2_buckets": [
+    { "binding": "MEDIA", "bucket_name": "hackathonatlas-media", "remote": true },
+  ],
+  "images": { "binding": "IMAGES" },
+  "observability": { "enabled": true },
+}

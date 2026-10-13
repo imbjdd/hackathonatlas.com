@@ -1,15 +1,19 @@
 import {
-  pgTable,
-  uuid,
+  sqliteTable,
   text,
-  doublePrecision,
-  timestamp,
+  real,
   integer,
   primaryKey,
-} from "drizzle-orm/pg-core";
+} from "drizzle-orm/sqlite-core";
 
-export const events = pgTable("events", {
-  id: uuid("id").defaultRandom().primaryKey(),
+// SQLite (Cloudflare D1) has no uuid/timestamp/array types: ids are uuid
+// strings, timestamps are epoch-ms integers, and tags are a JSON array.
+const uuid = (name: string) => text(name);
+const timestamp = (name: string) => integer(name, { mode: "timestamp_ms" });
+const doublePrecision = real;
+
+export const events = sqliteTable("events", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   title: text("title").notNull(),
   description: text("description"),
   city: text("city"),
@@ -20,10 +24,10 @@ export const events = pgTable("events", {
   organizerId: uuid("organizer_id"),
   link: text("link").unique(),
   cashPrize: integer("cash_prize"),
-  tags: text("tags").array(),
+  tags: text("tags", { mode: "json" }).$type<string[]>(),
   participantsCount: integer("participants_count").default(0),
   coverUrl: text("cover_url"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").$defaultFn(() => new Date()),
   // Attendance mode + location, enriched from the source (Luma) rather than
   // guessed at render time. mode ∈ "online" | "in_person" | "hybrid".
   mode: text("mode"),
@@ -47,14 +51,14 @@ export const events = pgTable("events", {
   classifiedAt: timestamp("classified_at"),
 });
 
-export const categories = pgTable("categories", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const categories = sqliteTable("categories", {
+  id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(),
   description: text("description"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").$defaultFn(() => new Date()),
 });
 
-export const eventCategories = pgTable(
+export const eventCategories = sqliteTable(
   "event_categories",
   {
     eventId: uuid("event_id")

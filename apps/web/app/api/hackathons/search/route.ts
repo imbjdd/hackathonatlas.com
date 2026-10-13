@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, asc, gte, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, gte, isNull, like, or } from "drizzle-orm";
 import { db } from "../../../../src/db";
 import { events } from "../../../../src/db/schema";
 import { visibleEvents } from "../../../../src/lib/event-visibility";
@@ -33,10 +33,11 @@ export async function GET(request: NextRequest) {
       and(
         visibleEvents,
         or(isNull(events.endTime), gte(events.endTime, new Date())),
+        // SQLite's LIKE is already case-insensitive for ASCII.
         or(
-          ilike(events.title, `%${q}%`),
-          ilike(events.city, `%${q}%`),
-          ilike(events.description, `%${q}%`)
+          like(events.title, `%${q}%`),
+          like(events.city, `%${q}%`),
+          like(events.description, `%${q}%`)
         )
       )
     )

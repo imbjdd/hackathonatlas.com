@@ -2,9 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "../../../src/db";
 import { events } from "../../../src/db/schema";
-import { uploadImageFromUrl } from "../../../src/lib/s3";
+import { uploadImageFromUrl } from "../../../src/lib/media";
 import { enrichFromLuma } from "../../../src/lib/luma";
 import { classifyEvent, statusForResult } from "../../../src/lib/classifier";
+
+// What the scrapers in crons/ POST; only title and startTime are required.
+type HackathonInput = {
+  title?: string;
+  description?: string | null;
+  city?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  startTime?: string;
+  endTime?: string | null;
+  organizerId?: string | null;
+  link?: string | null;
+  cashPrize?: number | null;
+  tags?: string[] | null;
+  participantsCount?: number;
+  coverUrl?: string | null;
+  mode?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  venue?: string | null;
+};
 
 export async function POST(request: NextRequest) {
   const expectedSecret = process.env.HACKATHONS_API_SECRET;
@@ -22,7 +43,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
+  const body = (await request.json()) as HackathonInput;
 
   if (!body.title || !body.startTime) {
     return NextResponse.json(

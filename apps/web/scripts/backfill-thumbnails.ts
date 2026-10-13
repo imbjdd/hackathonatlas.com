@@ -7,26 +7,17 @@
  * Idempotent: rerunning skips covers whose thumbnail already exists.
  * Run from apps/web:  bun scripts/backfill-thumbnails.ts
  */
+import "./cloudflare";
 import { isNotNull } from "drizzle-orm";
-import {
-  GetObjectCommand,
-  HeadObjectCommand,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
-import { BUCKET, makeThumbnail, s3 } from "../src/lib/s3";
+import { makeThumbnail, media } from "../src/lib/media";
 import { thumbKeyForCover } from "../src/lib/thumb-key";
 
 const CONCURRENCY = 8;
 
 async function thumbExists(key: string): Promise<boolean> {
-  try {
-    await s3.send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
-    return true;
-  } catch {
-    return false;
-  }
+  return (await media().head(key)) !== null;
 }
 
 type Outcome = "made" | "exists" | "skipped" | "failed";
@@ -38,17 +29,12 @@ async function processCover(coverKey: string): Promise<Outcome> {
   if (await thumbExists(thumbKey)) return "exists";
 
   try {
-    const obj = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: coverKey }));
-    const bytes = await obj.Body!.transformToByteArray();
-    const thumb = await makeThumbnail(Buffer.from(bytes));
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: thumbKey,
-        Body: thumb,
-        ContentType: "image/webp",
-      }),
-    );
+    const obj = await media().get(coverKey);
+    if (!obj) throw new Error("cover not found");
+    const thumb = await makeThumbnail(obj.body);
+    await media().put(thumbKey, await new Response(thumb).arrayBuffer(), {
+      httpMetadata: { contentType: "image/webp" },
+    });
     return "made";
   } catch (err) {
     console.error(`  ✗ ${coverKey}:`, (err as Error).message);

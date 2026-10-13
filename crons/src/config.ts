@@ -1,7 +1,7 @@
 // Central config, resolved once from the environment.
 
 const DEFAULT_PUSH_API_URL =
-  "https://hackathons-production-960c.up.railway.app/api/hackathons";
+  "https://hackathonatlas.com/api/hackathons";
 
 function envNumber(name: string, fallback: number): number {
   const raw = process.env[name];

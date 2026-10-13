@@ -10,6 +10,7 @@
  *   bun scripts/backfill-devpost-descriptions.ts            # all missing
  *   bun scripts/backfill-devpost-descriptions.ts --limit=20 # cap for a test
  */
+import "./cloudflare";
 import { and, eq, isNull, like, or } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
