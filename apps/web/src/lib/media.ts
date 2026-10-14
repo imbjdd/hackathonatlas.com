@@ -37,7 +37,11 @@ async function makeCover(image: ReadableStream<Uint8Array>): Promise<ArrayBuffer
 }
 
 export async function uploadImageFromUrl(url: string): Promise<string> {
-  const res = await fetch(url);
+  // Workers' fetch sends no User-Agent, which some image hosts (e.g.
+  // Wikimedia) reject with a 403.
+  const res = await fetch(url, {
+    headers: { "user-agent": "Mozilla/5.0 (compatible; HackathonAtlas/1.0)" },
+  });
   if (!res.ok) throw new Error(`Failed to fetch image: ${res.status}`);
 
   const original = await res.arrayBuffer();
