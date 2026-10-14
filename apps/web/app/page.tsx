@@ -1,4 +1,4 @@
-import { and, asc, gte, lte, sql } from "drizzle-orm";
+import { and, asc, gte, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
@@ -21,52 +21,38 @@ function getCoverSrc(coverUrl: string | null): string | null {
 }
 
 /*
- * D1's free tier allows 5M rows read a day, and each of these queries scans
- * the events table: computed per request, ~130 page views exhausted it. The
- * directory only changes when the scrapers run or an event is moderated, so
- * compute it at most once an hour (cached in KV, see open-next.config.ts).
+ * D1's free tier allows 5M rows read a day, and computing the directory per
+ * request (five queries scanning the events table) exhausted it in ~130 page
+ * views. So it is computed at most hourly and cached in KV (see
+ * open-next.config.ts), from a single query that the start_time index limits to
+ * upcoming events; the counts are derived from those rows.
  */
-const getDirectory = unstable_cache(
+const getUpcoming = unstable_cache(
   async () => {
     const now = new Date();
-    const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const weekEnd = now.getTime() + 7 * 24 * 60 * 60 * 1000;
     // Only real hackathons: the classifier hides fake/test and uncertain entries.
-    const upcoming = and(gte(events.startTime, now), visibleEvents);
-
-    const [rows, totals, allTotals, cityTotals, weekTotals] = await Promise.all([
-      db
-        .select({
-          id: events.id,
-          title: events.title,
-          city: events.city,
-          country: events.country,
-          mode: events.mode,
-          startTime: events.startTime,
-          endTime: events.endTime,
-          link: events.link,
-          cashPrize: events.cashPrize,
-          tags: events.tags,
-          coverUrl: events.coverUrl,
-          createdAt: events.createdAt,
-        })
-        .from(events)
-        .where(upcoming)
-        .orderBy(asc(events.startTime))
-        .limit(GRID_LIMIT),
-      db.select({ count: sql<number>`count(*)` }).from(events).where(upcoming),
-      db.select({ count: sql<number>`count(*)` }).from(events).where(visibleEvents),
-      db
-        .select({ count: sql<number>`count(distinct ${events.city})` })
-        .from(events)
-        .where(upcoming),
-      db
-        .select({ count: sql<number>`count(*)` })
-        .from(events)
-        .where(and(upcoming, gte(events.startTime, now), lte(events.startTime, weekEnd))),
-    ]);
+    const rows = await db
+      .select({
+        id: events.id,
+        title: events.title,
+        city: events.city,
+        country: events.country,
+        mode: events.mode,
+        startTime: events.startTime,
+        endTime: events.endTime,
+        link: events.link,
+        cashPrize: events.cashPrize,
+        tags: events.tags,
+        coverUrl: events.coverUrl,
+        createdAt: events.createdAt,
+      })
+      .from(events)
+      .where(and(gte(events.startTime, now), visibleEvents))
+      .orderBy(asc(events.startTime));
 
     // Plain JSON only: the cache serializes the result.
-    const directoryEvents: DirectoryEvent[] = rows.map((r) => ({
+    const directoryEvents: DirectoryEvent[] = rows.slice(0, GRID_LIMIT).map((r) => ({
       id: r.id,
       title: r.title,
       city: r.city,
@@ -83,19 +69,33 @@ const getDirectory = unstable_cache(
 
     return {
       directoryEvents,
-      totalEvents: totals[0]?.count ?? 0,
-      totalAll: allTotals[0]?.count ?? 0,
-      totalCities: cityTotals[0]?.count ?? 0,
-      thisWeek: weekTotals[0]?.count ?? 0,
+      totalEvents: rows.length,
+      // Same as SQL's count(distinct city): nulls are not a city.
+      totalCities: new Set(rows.flatMap((r) => (r.city === null ? [] : [r.city]))).size,
+      thisWeek: rows.filter((r) => r.startTime.getTime() <= weekEnd).length,
     };
   },
-  ["home-directory"],
+  ["home-upcoming"],
   { revalidate: 3600 },
 );
 
+// The all-time count has to scan every event, and only moves when events are
+// added or moderated: refresh it daily.
+const getTotalVisible = unstable_cache(
+  async () => {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(events)
+      .where(visibleEvents);
+    return row?.count ?? 0;
+  },
+  ["home-total-visible"],
+  { revalidate: 86400 },
+);
+
 export default async function Home() {
-  const { directoryEvents, totalEvents, totalAll, totalCities, thisWeek } =
-    await getDirectory();
+  const [{ directoryEvents, totalEvents, totalCities, thisWeek }, totalAll] =
+    await Promise.all([getUpcoming(), getTotalVisible()]);
   const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (
