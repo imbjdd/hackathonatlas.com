@@ -32,7 +32,8 @@ function monogram(name: string): string {
   return (words[0]![0]! + words[1]![0]!).toUpperCase();
 }
 
-// Both aggregates scan the events table; see the D1 note in app/page.tsx.
+// Both aggregates have to scan the whole events table (see the D1 note in
+// app/page.tsx), so refresh them daily.
 const getStats = unstable_cache(
   async () => {
     // Group events by the host of their link — the source is implied by the host
@@ -71,7 +72,7 @@ const getStats = unstable_cache(
     return { rows, cityRows };
   },
   ["stats"],
-  { revalidate: 3600 },
+  { revalidate: 86400 },
 );
 
 export default async function StatsPage() {
