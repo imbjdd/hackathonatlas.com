@@ -114,7 +114,6 @@ function EventLogo({ e, size, radius, fontSize }: { e: DirectoryEvent; size: num
           alt=""
           width={size}
           height={size}
-          quality={60}
           sizes={`${size}px`}
           className="h-full w-full object-cover"
         />

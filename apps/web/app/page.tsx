@@ -45,14 +45,14 @@ export default async function Home() {
       .where(upcoming)
       .orderBy(asc(events.startTime))
       .limit(GRID_LIMIT),
-    db.select({ count: sql<number>`count(*)::int` }).from(events).where(upcoming),
-    db.select({ count: sql<number>`count(*)::int` }).from(events).where(visibleEvents),
+    db.select({ count: sql<number>`count(*)` }).from(events).where(upcoming),
+    db.select({ count: sql<number>`count(*)` }).from(events).where(visibleEvents),
     db
-      .select({ count: sql<number>`count(distinct ${events.city})::int` })
+      .select({ count: sql<number>`count(distinct ${events.city})` })
       .from(events)
       .where(upcoming),
     db
-      .select({ count: sql<number>`count(*)::int` })
+      .select({ count: sql<number>`count(*)` })
       .from(events)
       .where(and(upcoming, gte(events.startTime, now), lte(events.startTime, weekEnd))),
   ]);

@@ -9,15 +9,31 @@ The open-source platform to discover hackathons near you and around the world. S
 
 ## Dev
 
-Requires [Bun](https://bun.sh) >= 1.3 and a PostgreSQL database.
+Requires [Bun](https://bun.sh) >= 1.3 and `wrangler login` on the Cloudflare
+account. `next dev` uses the Worker's bindings remotely, so it reads and writes
+production data (D1 database, R2 media bucket).
 
 ```sh
 bun install
-cp .env.example .env   # fill in DATABASE_URL, S3 credentials, HACKATHONS_API_SECRET
 bun run dev
 ```
 
 Runs at `http://localhost:3000`.
+
+## Hosting
+
+Everything runs on Cloudflare, configured in `apps/web/wrangler.jsonc`:
+
+- **Site**: Next.js on Workers via [OpenNext](https://opennext.js.org/cloudflare)
+  (worker `hackathonatlas`, zone route `hackathonatlas.com/*`).
+  Deploy with `cd apps/web && bun run deploy`.
+- **Database**: D1 `hackathonatlas` (Drizzle, SQLite). After changing
+  `src/db/schema.ts`, run `bun run db:generate` then `bun run db:migrate`.
+- **Media**: event covers and thumbnails in the R2 bucket `hackathonatlas-media`,
+  thumbnails generated with the Cloudflare Images binding.
+- **Secrets**: `HACKATHONS_API_SECRET`, `ADMIN_SECRET`, `OPENAI_API_KEY`
+  (`wrangler secret put …`).
+- **Scrapers** (`crons/`): the manual *Crons* GitHub Actions workflow.
 
 ## Community
 

@@ -1,6 +1,6 @@
 // Minimal shared-secret auth for the /admin moderation page.
 //
-// The secret lives only in the ADMIN_SECRET env var (set on Railway, never
+// The secret lives only in the ADMIN_SECRET env var (a Worker secret, never
 // committed) — so the code can be open source without exposing access. On a
 // correct login we drop an httpOnly cookie holding the secret and check it on
 // every admin request with a constant-time compare.

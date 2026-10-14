@@ -1,1 +1,0 @@
-ALTER TABLE "events" ADD CONSTRAINT "events_link_unique" UNIQUE("link");

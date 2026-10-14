@@ -3,8 +3,9 @@
 Scheduled scrapers that discover hackathons from external sources and push them
 into the Hackathon Atlas directory.
 
-Runs on [Bun](https://bun.sh). Deployed as a Railway cron job (deployed via the
-Railway CLI).
+Runs on [Bun](https://bun.sh), from the **Crons** GitHub Actions workflow
+(`.github/workflows/crons.yml`) — trigger it from the Actions tab or with
+`gh workflow run crons.yml`.
 
 ## Layout
 

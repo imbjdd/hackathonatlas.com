@@ -30,7 +30,7 @@ export function AdminReviewList({ rows }: { rows: ReviewRow[] }) {
         body: JSON.stringify({ id, action }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error ?? `Request failed (${res.status})`);
       }
       // Remove from the queue — the decision is applied.

@@ -8,6 +8,7 @@
 // Reads each event's Luma link, extracts location_type/geo, and stores
 // mode/city/country/countryCode/lat/lng/venue so the UI never has to guess.
 
+import "./cloudflare";
 import { and, eq, gte, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";

@@ -8,6 +8,7 @@
 // Only a definitive 404/410 marks a link dead; 429/timeouts are ignored so a
 // transient rate-limit can never delete a live event.
 
+import "./cloudflare";
 import { and, gte, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";

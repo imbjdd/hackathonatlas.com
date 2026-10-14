@@ -35,15 +35,18 @@ export default async function StatsPage() {
   // Group events by the host of their link — the source is implied by the host
   // (see src/lib/sources.ts). Aggregating in SQL keeps this cheap regardless of
   // how many events (or sources) the directory grows to.
+  // SQLite has no regex substring: take what follows "://" up to the next "/".
+  const afterScheme = sql`substr(${events.link}, instr(${events.link}, '://') + 3)`;
+  const host = sql<string | null>`case when instr(${events.link}, '://') > 0 then substr(${afterScheme}, 1, case when instr(${afterScheme}, '/') > 0 then instr(${afterScheme}, '/') - 1 else length(${afterScheme}) end) end`;
   const rows = await db
     .select({
-      host: sql<string | null>`substring(${events.link} from '://([^/]+)')`,
-      total: sql<number>`count(*)::int`,
-      upcoming: sql<number>`count(*) filter (where ${events.endTime} is null or ${events.endTime} >= now())::int`,
+      host,
+      total: sql<number>`count(*)`,
+      upcoming: sql<number>`sum(case when ${events.endTime} is null or ${events.endTime} >= ${Date.now()} then 1 else 0 end)`,
     })
     .from(events)
     .where(visibleEvents)
-    .groupBy(sql`substring(${events.link} from '://([^/]+)')`);
+    .groupBy(host);
 
   // Collapse hosts into named sources (multiple hosts can map to one source).
   const bySource = new Map<string, SourceRow>();
@@ -70,7 +73,7 @@ export default async function StatsPage() {
   const cityRows: CityRow[] = await db
     .select({
       city: sql<string>`${events.city}`,
-      total: sql<number>`count(*)::int`,
+      total: sql<number>`count(*)`,
     })
     .from(events)
     .where(
