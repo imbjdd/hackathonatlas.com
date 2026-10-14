@@ -1,12 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    localPatterns: [
-      {
-        pathname: "/api/images",
-      },
-    ],
-    qualities: [60, 75],
+    // Every image is an R2 object behind /api/images, already stored small
+    // (128px thumbnails, 512px WebP covers). OpenNext's optimizer can only read
+    // local images from static assets, not from a route, so serve them as is.
+    unoptimized: true,
   },
 };
 

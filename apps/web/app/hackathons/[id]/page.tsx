@@ -164,7 +164,6 @@ export default async function HackathonPage({
                   alt=""
                   width={88}
                   height={88}
-                  quality={80}
                   sizes="88px"
                   className="h-full w-full object-cover"
                 />
