@@ -1,4 +1,5 @@
 import { and, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { db } from "../../src/db";
 import { events } from "../../src/db/schema";
 import { visibleEvents } from "../../src/lib/event-visibility";
@@ -31,22 +32,50 @@ function monogram(name: string): string {
   return (words[0]![0]! + words[1]![0]!).toUpperCase();
 }
 
+// Both aggregates scan the events table; see the D1 note in app/page.tsx.
+const getStats = unstable_cache(
+  async () => {
+    // Group events by the host of their link — the source is implied by the host
+    // (see src/lib/sources.ts).
+    // SQLite has no regex substring: take what follows "://" up to the next "/".
+    const afterScheme = sql`substr(${events.link}, instr(${events.link}, '://') + 3)`;
+    const host = sql<string | null>`case when instr(${events.link}, '://') > 0 then substr(${afterScheme}, 1, case when instr(${afterScheme}, '/') > 0 then instr(${afterScheme}, '/') - 1 else length(${afterScheme}) end) end`;
+    const rows = await db
+      .select({
+        host,
+        total: sql<number>`count(*)`,
+        upcoming: sql<number>`sum(case when ${events.endTime} is null or ${events.endTime} >= ${Date.now()} then 1 else 0 end)`,
+      })
+      .from(events)
+      .where(visibleEvents)
+      .groupBy(host);
+
+    // Where the hackathons happen — group located events by city. Nulls (online
+    // events, or ones we haven't enriched yet) are dropped so the ranking only
+    // reflects events with a real place.
+    const cityRows: CityRow[] = await db
+      .select({
+        city: sql<string>`${events.city}`,
+        total: sql<number>`count(*)`,
+      })
+      .from(events)
+      .where(
+        and(
+          visibleEvents,
+          sql`${events.city} is not null and ${events.city} <> '' and lower(${events.city}) not in ('online', 'virtual', 'remote', 'tbd')`,
+        ),
+      )
+      .groupBy(events.city)
+      .orderBy(sql`count(*) desc, ${events.city} asc`);
+
+    return { rows, cityRows };
+  },
+  ["stats"],
+  { revalidate: 3600 },
+);
+
 export default async function StatsPage() {
-  // Group events by the host of their link — the source is implied by the host
-  // (see src/lib/sources.ts). Aggregating in SQL keeps this cheap regardless of
-  // how many events (or sources) the directory grows to.
-  // SQLite has no regex substring: take what follows "://" up to the next "/".
-  const afterScheme = sql`substr(${events.link}, instr(${events.link}, '://') + 3)`;
-  const host = sql<string | null>`case when instr(${events.link}, '://') > 0 then substr(${afterScheme}, 1, case when instr(${afterScheme}, '/') > 0 then instr(${afterScheme}, '/') - 1 else length(${afterScheme}) end) end`;
-  const rows = await db
-    .select({
-      host,
-      total: sql<number>`count(*)`,
-      upcoming: sql<number>`sum(case when ${events.endTime} is null or ${events.endTime} >= ${Date.now()} then 1 else 0 end)`,
-    })
-    .from(events)
-    .where(visibleEvents)
-    .groupBy(host);
+  const { rows, cityRows } = await getStats();
 
   // Collapse hosts into named sources (multiple hosts can map to one source).
   const bySource = new Map<string, SourceRow>();
@@ -66,24 +95,6 @@ export default async function StatsPage() {
   const grandUpcoming = sources.reduce((n, s) => n + s.upcoming, 0);
   const fmt = (n: number) => n.toLocaleString("en-US");
   const pct = (n: number) => (grandTotal ? Math.round((n / grandTotal) * 100) : 0);
-
-  // Where the hackathons happen — group located events by city. Nulls (online
-  // events, or ones we haven't enriched yet) are dropped so the ranking only
-  // reflects events with a real place.
-  const cityRows: CityRow[] = await db
-    .select({
-      city: sql<string>`${events.city}`,
-      total: sql<number>`count(*)`,
-    })
-    .from(events)
-    .where(
-      and(
-        visibleEvents,
-        sql`${events.city} is not null and ${events.city} <> '' and lower(${events.city}) not in ('online', 'virtual', 'remote', 'tbd')`,
-      ),
-    )
-    .groupBy(events.city)
-    .orderBy(sql`count(*) desc, ${events.city} asc`);
 
   const TOP_CITIES = 5;
   const cityKnownTotal = cityRows.reduce((n, c) => n + c.total, 0);
