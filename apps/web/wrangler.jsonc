@@ -29,5 +29,12 @@
     { "binding": "MEDIA", "bucket_name": "hackathonatlas-media", "remote": true },
   ],
   "images": { "binding": "IMAGES" },
+  /*
+   * A zone route rather than a custom domain: the apex keeps its proxied DNS
+   * record, and the Worker answers every request before it reaches the origin.
+   */
+  "routes": [{ "pattern": "hackathonatlas.com/*", "zone_name": "hackathonatlas.com" }],
+  "workers_dev": true,
+  "preview_urls": true,
   "observability": { "enabled": true },
 }
