@@ -1,4 +1,5 @@
 import { and, asc, gte, lte, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { db } from "../src/db";
 import { events } from "../src/db/schema";
 import { visibleEvents } from "../src/lib/event-visibility";
@@ -19,63 +20,82 @@ function getCoverSrc(coverUrl: string | null): string | null {
   return `/api/images?key=${encodeURIComponent(thumbKeyForCover(coverUrl))}`;
 }
 
+/*
+ * D1's free tier allows 5M rows read a day, and each of these queries scans
+ * the events table: computed per request, ~130 page views exhausted it. The
+ * directory only changes when the scrapers run or an event is moderated, so
+ * compute it at most once an hour (cached in KV, see open-next.config.ts).
+ */
+const getDirectory = unstable_cache(
+  async () => {
+    const now = new Date();
+    const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // Only real hackathons: the classifier hides fake/test and uncertain entries.
+    const upcoming = and(gte(events.startTime, now), visibleEvents);
+
+    const [rows, totals, allTotals, cityTotals, weekTotals] = await Promise.all([
+      db
+        .select({
+          id: events.id,
+          title: events.title,
+          city: events.city,
+          country: events.country,
+          mode: events.mode,
+          startTime: events.startTime,
+          endTime: events.endTime,
+          link: events.link,
+          cashPrize: events.cashPrize,
+          tags: events.tags,
+          coverUrl: events.coverUrl,
+          createdAt: events.createdAt,
+        })
+        .from(events)
+        .where(upcoming)
+        .orderBy(asc(events.startTime))
+        .limit(GRID_LIMIT),
+      db.select({ count: sql<number>`count(*)` }).from(events).where(upcoming),
+      db.select({ count: sql<number>`count(*)` }).from(events).where(visibleEvents),
+      db
+        .select({ count: sql<number>`count(distinct ${events.city})` })
+        .from(events)
+        .where(upcoming),
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(events)
+        .where(and(upcoming, gte(events.startTime, now), lte(events.startTime, weekEnd))),
+    ]);
+
+    // Plain JSON only: the cache serializes the result.
+    const directoryEvents: DirectoryEvent[] = rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      city: r.city,
+      country: r.country,
+      mode: r.mode,
+      startTime: r.startTime.toISOString(),
+      endTime: r.endTime ? r.endTime.toISOString() : null,
+      link: r.link,
+      cashPrize: r.cashPrize,
+      tags: r.tags,
+      cover: getCoverSrc(r.coverUrl),
+      createdAt: r.createdAt ? r.createdAt.toISOString() : null,
+    }));
+
+    return {
+      directoryEvents,
+      totalEvents: totals[0]?.count ?? 0,
+      totalAll: allTotals[0]?.count ?? 0,
+      totalCities: cityTotals[0]?.count ?? 0,
+      thisWeek: weekTotals[0]?.count ?? 0,
+    };
+  },
+  ["home-directory"],
+  { revalidate: 3600 },
+);
+
 export default async function Home() {
-  const now = new Date();
-  const weekEnd = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  // Only real hackathons: the classifier hides fake/test and uncertain entries.
-  const upcoming = and(gte(events.startTime, now), visibleEvents);
-
-  const [rows, totals, allTotals, cityTotals, weekTotals] = await Promise.all([
-    db
-      .select({
-        id: events.id,
-        title: events.title,
-        city: events.city,
-        country: events.country,
-        mode: events.mode,
-        startTime: events.startTime,
-        endTime: events.endTime,
-        link: events.link,
-        cashPrize: events.cashPrize,
-        tags: events.tags,
-        coverUrl: events.coverUrl,
-        createdAt: events.createdAt,
-      })
-      .from(events)
-      .where(upcoming)
-      .orderBy(asc(events.startTime))
-      .limit(GRID_LIMIT),
-    db.select({ count: sql<number>`count(*)` }).from(events).where(upcoming),
-    db.select({ count: sql<number>`count(*)` }).from(events).where(visibleEvents),
-    db
-      .select({ count: sql<number>`count(distinct ${events.city})` })
-      .from(events)
-      .where(upcoming),
-    db
-      .select({ count: sql<number>`count(*)` })
-      .from(events)
-      .where(and(upcoming, gte(events.startTime, now), lte(events.startTime, weekEnd))),
-  ]);
-
-  const directoryEvents: DirectoryEvent[] = rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    city: r.city,
-    country: r.country,
-    mode: r.mode,
-    startTime: r.startTime.toISOString(),
-    endTime: r.endTime ? r.endTime.toISOString() : null,
-    link: r.link,
-    cashPrize: r.cashPrize,
-    tags: r.tags,
-    cover: getCoverSrc(r.coverUrl),
-    createdAt: r.createdAt ? r.createdAt.toISOString() : null,
-  }));
-
-  const totalEvents = totals[0]?.count ?? 0;
-  const totalAll = allTotals[0]?.count ?? 0;
-  const totalCities = cityTotals[0]?.count ?? 0;
-  const thisWeek = weekTotals[0]?.count ?? 0;
+  const { directoryEvents, totalEvents, totalAll, totalCities, thisWeek } =
+    await getDirectory();
   const fmt = (n: number) => n.toLocaleString("en-US");
 
   return (

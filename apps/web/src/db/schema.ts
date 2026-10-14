@@ -4,6 +4,7 @@ import {
   real,
   integer,
   primaryKey,
+  index,
 } from "drizzle-orm/sqlite-core";
 
 // SQLite (Cloudflare D1) has no uuid/timestamp/array types: ids are uuid
@@ -49,7 +50,12 @@ export const events = sqliteTable("events", {
   classificationReason: text("classification_reason"),
   classificationModel: text("classification_model"),
   classifiedAt: timestamp("classified_at"),
-});
+}, (t) => [
+  // D1 bills rows read, so the directory's filters must not scan the table.
+  index("events_start_time_idx").on(t.startTime),
+  index("events_end_time_idx").on(t.endTime),
+  index("events_classification_status_idx").on(t.classificationStatus),
+]);
 
 export const categories = sqliteTable("categories", {
   id: uuid("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
