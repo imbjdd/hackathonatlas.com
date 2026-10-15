@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-import { and, asc, gte, isNull, or } from "drizzle-orm";
+import { and, gte, isNull, or } from "drizzle-orm";
 import { db } from "../../../../src/db";
 import { events } from "../../../../src/db/schema";
 import { visibleEvents } from "../../../../src/lib/event-visibility";
@@ -28,8 +28,12 @@ const getSearchable = unstable_cache(
       .from(events)
       .where(
         and(visibleEvents, or(isNull(events.endTime), gte(events.endTime, new Date()))),
-      )
-      .orderBy(asc(events.startTime));
+      );
+
+    // Sorted here, not in SQL: an ORDER BY start_time makes SQLite walk the
+    // start_time index over the whole table instead of using end_time's
+    // index for the filter (11,671 rows read instead of ~300).
+    rows.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
     return rows.map((r) => ({
       id: r.id,
